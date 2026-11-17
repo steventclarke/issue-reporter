@@ -1,0 +1,20 @@
+flowchart LR
+  U["User"] -->|"sign in"| IDP["Cognito User Pool<br/>OIDC · Google federation"]
+  IDP -->|"ID token + refresh token"| APP["Tenant app<br/>Iron Altar / future tenant"]
+  APP -->|"getBearerToken()"| CLIENT["@issue-reporter/client<br/>token provider · redaction · transport"]
+  CLIENT -->|"POST /v1/reports<br/>Authorization: Bearer JWT"| CF["CloudFront<br/>OAC · forward Authorization<br/>no caching for POST"]
+  CF -->|"signed origin request"| FURL["Lambda Function URL<br/>AWS_IAM"]
+  FURL --> ING["Ingest Lambda"]
+
+  CFG["Per-app auth config<br/>config/applications.ts + SSM<br/>issuer · audience · allow rules"] --> ING
+  JWKS["IdP JWKS endpoint<br/>cached by issuer + kid"] --> ING
+
+  ING --> VERIFY{"JWT valid?"}
+  VERIFY -->|"no"| U401["401 unauthorized"]
+  VERIFY -->|"yes"| ALLOW{"Allowed by group / domain / subject?"}
+  ALLOW -->|"no"| U403["403 forbidden"]
+  ALLOW -->|"yes"| PIPE["Existing pipeline<br/>Zod · redact · size limits<br/>rate-limit by subject/IP/installation<br/>derive reporter from claims"]
+  PIPE --> S3["S3<br/>report.json + screenshot"]
+  PIPE --> DDB["DynamoDB<br/>status · idempotency"]
+  PIPE --> SQS["SQS worker queue"]
+  SQS --> W["Worker Lambda<br/>public GitHub issue"]
