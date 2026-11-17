@@ -307,19 +307,19 @@ declaring any phase done.
 
 ## 7. Open questions to resolve at review
 
-1. Automatic-data default (recommendation: on, with preview and toggle).
-2. Confirm 5/10/20 per-hour rate limits after observing usage.
-3. Report retention: indefinite vs expiry after closure / 12 months.
-4. Keep optional public contact or switch to GitHub comments.
-5. Confirm `[iron-altar] <summary>` title format.
-6. One platform GitHub App vs one per tenant (recommendation: one platform app).
-7. Alarm thresholds (Lambda errors vs DLQ depth only).
-8. Whether preview reports create public issues (design assumes yes).
-9. Manual screenshot removal vs crop/redaction tool for v1.
-10. Keep viewer IP internal (recommendation) vs include in public report.
-11. Accept imperfect web SVG/chart captures for v1.
-12. Private registry first vs public npm (recommendation: private first).
-13. Client major-version check with opt-out vs `/v1` + server validation only
+1. Automatic-data default (recommendation: on, with preview and toggle). A: Recommendation is fine
+2. Confirm 5/10/20 per-hour rate limits after observing usage. 
+3. Report retention: indefinite vs expiry after closure / 12 months. A: Expire 30 days after closure
+4. Keep optional public contact or switch to GitHub comments. A: I'd like to know who submitted the report, which I think we can get from google sso login (I am updating tenant apps to include sso) but primary communication should be through GitHub comments
+5. Confirm `[iron-altar] <summary>` title format. A: This should include application version as well
+6. One platform GitHub App vs one per tenant (recommendation: one platform app). A: One platform app
+7. Alarm thresholds (Lambda errors vs DLQ depth only). A: I'm not sure, set a reasonable default and include a plan to validate that these are sufficient
+8. Whether preview reports create public issues (design assumes yes). A: Yes, as long as the application version / environment is indicated in the issue
+9. Manual screenshot removal vs crop/redaction tool for v1. A: Manual only, no crop redaction tool needed
+10. Keep viewer IP internal (recommendation) vs include in public report. A: Keep internal
+11. Accept imperfect web SVG/chart captures for v1. A: This is fine
+12. Private registry first vs public npm (recommendation: private first). A: Private first, I only need my apps to use it for now
+13. Client major-version check with opt-out vs `/v1` + server validation only: A: Both
     (recommendation: both).
 
 ## 8. Definition of done
