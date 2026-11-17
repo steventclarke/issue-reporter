@@ -3,9 +3,11 @@ export * from '@issue-reporter/core';
 export { estimateBase64Bytes } from './base64';
 export {
   validateConfig,
+  type BearerTokenProvider,
   type FetchInit,
   type FetchLike,
   type FetchResponse,
+  type IssueReporterAuthConfig,
   type IssueReporterConfig,
   type IssueReporterDiagnostic,
   type IssueReporterDiagnosticEvent,

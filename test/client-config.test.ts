@@ -28,12 +28,20 @@ describe('validateConfig', () => {
     expect(resolved.timeoutMs).toBe(30_000);
     expect(resolved.installationKey).toBe('issue-reporter/installation-id');
     expect(resolved.extraRedactionPatterns).toEqual([]);
+    expect(resolved.auth).toBeUndefined();
   });
 
   it('uses a configured storage prefix', () => {
     const resolved = validateConfig({ ...baseConfig(), storageKeyPrefix: 'iron-altar' });
 
     expect(resolved.installationKey).toBe('iron-altar/installation-id');
+  });
+
+  it('accepts an SSO bearer token provider', () => {
+    const getBearerToken = jest.fn(async () => 'token');
+    const resolved = validateConfig({ ...baseConfig(), auth: { getBearerToken } });
+
+    expect(resolved.auth?.getBearerToken).toBe(getBearerToken);
   });
 
   it.each<[string, (config: IssueReporterConfig) => void]>([
@@ -49,6 +57,10 @@ describe('validateConfig', () => {
       (config) => void (config.extraRedactionPatterns = [1 as unknown as RegExp]),
     ],
     [
+      'invalid auth provider',
+      (config) => void (config.auth = {} as unknown as IssueReporterConfig['auth']),
+    ],
+    [
       'invalid diagnostic callback',
       (config) =>
         void (config.onDiagnostic = 'no' as unknown as IssueReporterConfig['onDiagnostic']),
@@ -59,7 +71,7 @@ describe('validateConfig', () => {
 
     expect(() => validateConfig(config)).toThrow(IssueReporterError);
     expect(() => validateConfig(config)).toThrow(
-      /endpoint|app|environment|storage|timeoutMs|Redaction|diagnostic/i,
+      /endpoint|app|environment|storage|timeoutMs|auth|Redaction|diagnostic/i,
     );
   });
 });

@@ -1,4 +1,4 @@
-import { appSlugSchema, environmentSchema } from '@issue-reporter/core';
+import { appSlugSchema, environmentSchema, type AuthFailureReason } from '@issue-reporter/core';
 import { IssueReporterError } from './errors';
 import { installationStorageKey, type StorageAdapter } from './install-id';
 
@@ -16,13 +16,21 @@ export type FetchInit = {
 
 export type FetchLike = (url: string, init: FetchInit) => Promise<FetchResponse>;
 
-export type IssueReporterDiagnosticEvent = 'request_started' | 'response_received' | 'rate_limited';
+export type BearerTokenProvider = () => Promise<string | null>;
+
+export type IssueReporterAuthConfig = {
+  getBearerToken: BearerTokenProvider;
+};
+
+export type IssueReporterDiagnosticEvent =
+  'request_started' | 'response_received' | 'rate_limited' | 'auth_required' | 'auth_failed';
 
 export type IssueReporterDiagnostic = {
   event: IssueReporterDiagnosticEvent;
   reportId?: string;
   status?: number;
   retryAfterSeconds?: number;
+  reason?: AuthFailureReason;
 };
 
 export type IssueReporterConfig = {
@@ -33,6 +41,7 @@ export type IssueReporterConfig = {
   storageKeyPrefix?: string;
   fetch?: FetchLike;
   timeoutMs?: number;
+  auth?: IssueReporterAuthConfig;
   extraRedactionPatterns?: RegExp[];
   onDiagnostic?: (event: IssueReporterDiagnostic) => void;
 };
@@ -88,6 +97,16 @@ export const validateConfig = (config: IssueReporterConfig): ResolvedConfig => {
   const timeoutMs = config.timeoutMs ?? 30_000;
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
     return fail('timeoutMs must be a positive integer');
+  }
+
+  if (config.auth !== undefined) {
+    if (
+      !config.auth ||
+      typeof config.auth !== 'object' ||
+      typeof config.auth.getBearerToken !== 'function'
+    ) {
+      return fail('auth.getBearerToken must be a function');
+    }
   }
 
   const extraRedactionPatterns = config.extraRedactionPatterns ?? [];

@@ -77,7 +77,7 @@ before submission.
   data.
 - Offline submission queue.
 - Automatic duplicate detection beyond the client-generated idempotency key.
-- Authenticated user accounts or reporter identity.
+- Tenant-owned SSO login UI; the tenant app supplies the session token to the client.
 - Private issues or private attachments.
 - WAF, API Gateway, or per-app backend stacks.
 - Automatic screenshot redaction.
@@ -487,8 +487,9 @@ global `fetch` assumption. It exports:
 - `redactReport(input)` and the redaction pattern presets (re-exported from
   `@issue-reporter/core`).
 - `estimateBase64Bytes(value)` and the shared limit constants.
-- `IssueReporterError` with `code`: `validation`, `forbidden_origin`,
-  `payload_too_large`, `rate_limited`, `network`, `server`.
+- `IssueReporterError` with `code`: `validation`, `unauthorized`, `forbidden`,
+  `forbidden_origin`, `payload_too_large`, `rate_limited`, `auth_unavailable`, `network`,
+  `server`. Optional `reason` carries a metadata-only auth failure code.
 
 Configuration:
 
@@ -504,6 +505,7 @@ type IssueReporterConfig = {
   storageKeyPrefix?: string;
   fetch?: typeof fetch;
   timeoutMs?: number;
+  auth?: { getBearerToken(): Promise<string | null> };
   extraRedactionPatterns?: RegExp[];
   onDiagnostic?: (event: IssueReporterDiagnostic) => void;
 };
@@ -511,8 +513,8 @@ type IssueReporterConfig = {
 
 `submit()` resolves to `{ ok: true, reportId, status }` or
 `{ ok: false, reportId, error: IssueReporterError }`; it does not throw for report failures.
-`IssueReporterDiagnostic` contains only `event`, `reportId`, `status`, and
-`retryAfterSeconds`.
+`IssueReporterDiagnostic` contains only `event`, `reportId`, `status`,
+`retryAfterSeconds`, and an optional metadata-only `reason`.
 
 Behavioral guarantees:
 
@@ -525,7 +527,13 @@ Behavioral guarantees:
 - Applies `timeoutMs` through `AbortController`; a timeout surfaces as `network`.
   The default is 30 seconds and must be a positive integer.
 - Reports only metadata through `onDiagnostic` (for example, `request_started`,
-  `response_received`, `rate_limited`) — never report content.
+  `response_received`, `rate_limited`, `auth_required`, `auth_failed`) — never report content,
+  tokens, or raw claims.
+- When `auth.getBearerToken()` is configured, the client attaches the returned token as
+  `Authorization: Bearer <token>`; a `null` token omits the header, and a thrown provider fails
+  locally with `unauthorized` / `token_provider_failed`. The callback is a getter for a token
+  issued by the tenant’s SSO; it is not a validator. Backend enforcement is specified in
+  [`issue-reporting-auth-sso-jwt.md`](issue-reporting-auth-sso-jwt.md).
 
 The app builds the app-specific payload and calls the library:
 
@@ -711,11 +719,14 @@ Example with arbitrary tenant JSON (screenshot data shortened):
 | ------ | ---------------------------- | ----------------------------------------------------------------------- |
 | `202`  | Accepted or already accepted | `{ "reportId": "...", "status": "queued" \| "receiving" \| "created" }` |
 | `400`  | Validation error             | `{ "error": "validation_failed", "issues": [...] }`                     |
+| `401`  | SSO token missing or invalid | `{ "error": "unauthorized", "reason": "missing_token" }`                |
+| `403`  | User not allowed             | `{ "error": "forbidden", "reason": "not_allowed" }`                     |
 | `403`  | Origin not allowed           | `{ "error": "forbidden_origin" }`                                       |
 | `405`  | Method not allowed           | `{ "error": "method_not_allowed" }`                                     |
 | `413`  | Report payload too large     | `{ "error": "payload_too_large" }`                                      |
 | `429`  | Rate limited                 | `{ "error": "rate_limited", "retryAfterSeconds": 3600 }`                |
 | `500`  | Internal error               | `{ "error": "internal_error" }`                                         |
+| `503`  | SSO/JWKS unavailable         | `{ "error": "auth_unavailable", "reason": "auth_unavailable" }`         |
 
 Honeypot submissions return `202` with the same body shape as an accepted report and are
 not stored.
@@ -729,8 +740,8 @@ Allowed origins:
 - `http://localhost:8081`
 - `http://localhost:19006`
 
-The Lambda Function URL and CloudFront must allow `POST`, `OPTIONS`, and the
-`content-type` header.
+The Lambda Function URL and CloudFront must allow `POST`, `OPTIONS`, the
+`content-type` header, and the `authorization` header (for apps with `auth.mode = 'oidc'`).
 
 ### 7.5 Limits
 
@@ -812,8 +823,11 @@ Inputs from SSM in `us-east-2`:
 Configuration:
 
 - `config/applications.ts` gains `issueIntake?: { enabled: boolean; environments: string[];
-categories: string[]; reporterProviders: string[]; labels?: string[] }`. Core accepts any
-  valid slug; this config defines the allowed values for each tenant.
+categories: string[]; reporterProviders: string[]; labels?: string[];
+auth?: IssueIntakeAuthConfig }`. Core accepts any valid slug; this config defines the
+  allowed values and optional SSO mode for each tenant. `auth` is `none` by default or `oidc`
+  with issuer, audience, and allowlist rules as specified in
+  [`issue-reporting-auth-sso-jwt.md`](issue-reporting-auth-sso-jwt.md).
 - `iron-altar` enables issue intake with its own environments, categories, and provider.
 - The stack builds `APP_CONFIG` and allowed origins from enabled applications.
 - Per-app repository and label configuration is published to SSM.
@@ -846,7 +860,11 @@ SSM outputs:
 1. CloudFront forwards the request to the Function URL.
 2. Lambda verifies the origin against the allowlist.
 3. Parse JSON; reject oversized bodies.
-4. Validate with Zod and app config:
+4. Resolve `app` config. If `auth.mode = 'oidc'`, verify the bearer JWT against the configured
+   issuer/JWKS, check `iss`, `aud`, `exp`, `token_use`, and the allowlist, then overwrite
+   `reporter` from verified claims. Return `401`, `403`, or `503` with a metadata-only `reason`
+   on failure (see the approved SSO bearer JWT design).
+5. Validate with Zod and app config:
    - app exists and has issue intake enabled;
    - environment and category are allowed for that app;
    - reporter provider is allowed for that app when present;
@@ -855,32 +873,33 @@ SSM outputs:
      unknown request-envelope keys are stripped;
    - logs and stack-trace array shapes and limits;
    - screenshot content type and base64 size.
-5. If `website` is non-empty, return a generic `202` and stop.
-6. Check for an existing report record:
+6. If `website` is non-empty, return a generic `202` and stop.
+7. Check for an existing report record:
    - `pk = REPORT#<reportId>`, `sk = META`;
    - if present, return its current status without re-running rate limits or writing files.
-7. Check rate limits in DynamoDB:
+8. Check rate limits in DynamoDB:
    - installation;
    - viewer IP from `CloudFront-Viewer-Address`;
-   - app.
-8. If over limit, return `429`.
-9. Redact token/secret patterns from user text, app data, logs, and stack traces.
-   If redaction fails unexpectedly, return `500` without storing the report.
-10. Serialize the sanitized report JSON (all fields except the screenshot base64) and
+   - app;
+   - authenticated subject when `auth.mode = 'oidc'`.
+9. If over limit, return `429`.
+10. Redact token/secret patterns from user text, app data, logs, and stack traces.
+    If redaction fails unexpectedly, return `500` without storing the report.
+11. Serialize the sanitized report JSON (all fields except the screenshot base64) and
     enforce the app-data/log/stack-trace size limit.
-11. Conditionally write the report record with `status = receiving`:
+12. Conditionally write the report record with `status = receiving`:
     - condition: `attribute_not_exists(pk)`;
     - if the conditional write loses a race, return the existing status.
-12. Upload the sanitized report JSON to
+13. Upload the sanitized report JSON to
     `attachments/reports/<app>/<reportId>/report.json`.
-13. If a screenshot is present:
+14. If a screenshot is present:
     - decode base64;
     - enforce decoded size;
     - upload to S3 at
       `attachments/reports/<app>/<reportId>/screenshot.<jpg|png>`.
-14. Update the record to `status = queued`.
-15. Send an SQS message containing `reportId`, `app`, and `environment`.
-16. Return `202`.
+15. Update the record to `status = queued`.
+16. Send an SQS message containing `reportId`, `app`, and `environment`.
+17. Return `202`.
 
 If an upload, record update, or SQS send fails, delete the report record and any uploaded
 objects so the client can retry with the same `reportId`.
@@ -1085,6 +1104,19 @@ Publishing:
   version.
 - `@issue-reporter/client` is not used by the backend. The backend imports `core` at build
   time and bundles it into the Lambda artifacts.
+
+### 8.13 Optional SSO bearer JWT auth
+
+The approved design in [`issue-reporting-auth-sso-jwt.md`](issue-reporting-auth-sso-jwt.md) adds
+an opt-in `auth.mode = 'oidc'` per app. The client obtains a short-lived Cognito ID token from
+the tenant app’s existing SSO session via `auth.getBearerToken()` and sends it in the
+`Authorization` header. That callback is a getter, not a validator: security comes from ingest
+verifying the signed token against the configured issuer/JWKS, audience, expiry, token use, and
+allowlist before any report side effects. Anonymous apps keep `auth.mode = 'none'`.
+
+Phase 3 adds the contract, header, error codes, and diagnostics. Phase 5 adds ingest verification,
+claim-derived `reporter`, and subject-based rate limiting. The rendered architecture diagram is
+[`diagrams/issue-reporting-auth-sso-jwt.svg`](diagrams/issue-reporting-auth-sso-jwt.svg).
 
 ---
 

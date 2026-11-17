@@ -1,7 +1,15 @@
-import { errorResponseSchema } from '@issue-reporter/core';
+import { errorResponseSchema, type AuthFailureReason } from '@issue-reporter/core';
 
 export type IssueReporterErrorCode =
-  'validation' | 'forbidden_origin' | 'payload_too_large' | 'rate_limited' | 'network' | 'server';
+  | 'validation'
+  | 'unauthorized'
+  | 'forbidden'
+  | 'forbidden_origin'
+  | 'payload_too_large'
+  | 'rate_limited'
+  | 'auth_unavailable'
+  | 'network'
+  | 'server';
 
 export type IssueReporterErrorPart = 'request' | 'data' | 'logs' | 'screenshot';
 
@@ -10,6 +18,7 @@ export type IssueReporterErrorDetails = {
   part?: IssueReporterErrorPart;
   issues?: string[];
   retryAfterSeconds?: number;
+  reason?: AuthFailureReason;
 };
 
 export class IssueReporterError extends Error {
@@ -18,6 +27,7 @@ export class IssueReporterError extends Error {
   readonly part?: IssueReporterErrorPart;
   readonly issues?: string[];
   readonly retryAfterSeconds?: number;
+  readonly reason?: AuthFailureReason;
 
   constructor(
     code: IssueReporterErrorCode,
@@ -31,6 +41,7 @@ export class IssueReporterError extends Error {
     this.part = details.part;
     this.issues = details.issues;
     this.retryAfterSeconds = details.retryAfterSeconds;
+    this.reason = details.reason;
   }
 }
 
@@ -42,9 +53,12 @@ const issuePath = (issue: unknown): string => {
 
 const ERROR_MESSAGES: Record<IssueReporterErrorCode, string> = {
   validation: 'The report was rejected as invalid',
+  unauthorized: 'SSO sign-in is required to submit this report',
+  forbidden: 'This account is not allowed to submit reports',
   forbidden_origin: 'The report origin is not allowed',
   payload_too_large: 'The report is too large',
   rate_limited: 'Too many reports were submitted recently',
+  auth_unavailable: 'The SSO service is temporarily unavailable',
   network: 'The report could not be sent',
   server: 'The report service returned an unexpected response',
 };
@@ -58,12 +72,20 @@ export const errorFromResponse = (status: number, body: unknown): IssueReporterE
   if (parsed.success && parsed.data.retryAfterSeconds !== undefined) {
     details.retryAfterSeconds = parsed.data.retryAfterSeconds;
   }
+  if (parsed.success && parsed.data.reason !== undefined) {
+    details.reason = parsed.data.reason;
+  }
 
   let code: IssueReporterErrorCode = 'server';
   if (status === 400) code = 'validation';
-  if (status === 403) code = 'forbidden_origin';
+  if (status === 401) code = 'unauthorized';
+  if (status === 403) {
+    code =
+      parsed.success && parsed.data.error === 'forbidden_origin' ? 'forbidden_origin' : 'forbidden';
+  }
   if (status === 413) code = 'payload_too_large';
   if (status === 429) code = 'rate_limited';
+  if (status === 503) code = 'auth_unavailable';
 
   return new IssueReporterError(code, ERROR_MESSAGES[code], details);
 };

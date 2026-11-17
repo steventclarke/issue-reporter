@@ -8,6 +8,7 @@ import {
   issueReportRequestSchema,
   redactReport,
   type AcceptedReportResponse,
+  type AuthFailureReason,
   type IssueReportRequest,
 } from '@issue-reporter/core';
 import { estimateBase64Bytes } from './base64';
@@ -63,6 +64,13 @@ const emitDiagnostic = (config: ResolvedConfig, event: IssueReporterDiagnostic):
   } catch {
     return;
   }
+};
+
+const authFailureReason = (error: IssueReporterError): AuthFailureReason => {
+  if (error.reason) return error.reason;
+  if (error.code === 'unauthorized') return 'invalid_token';
+  if (error.code === 'forbidden') return 'not_allowed';
+  return 'auth_unavailable';
 };
 
 const enforceLimits = (request: IssueReportRequest, body: string): void => {
@@ -144,6 +152,27 @@ export const createIssueReporter = (config: IssueReporterConfig): IssueReporter 
         const body = JSON.stringify(request);
         enforceLimits(request, body);
 
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (resolved.auth) {
+          emitDiagnostic(resolved, { event: 'auth_required', reportId });
+          let token: string | null;
+          try {
+            token = await resolved.auth.getBearerToken();
+          } catch {
+            emitDiagnostic(resolved, {
+              event: 'auth_failed',
+              reportId,
+              reason: 'token_provider_failed',
+            });
+            throw new IssueReporterError('unauthorized', 'Unable to load the SSO token', {
+              reason: 'token_provider_failed',
+            });
+          }
+          if (typeof token === 'string' && token.trim() !== '') {
+            headers.Authorization = `Bearer ${token.trim()}`;
+          }
+        }
+
         emitDiagnostic(resolved, { event: 'request_started', reportId });
 
         const controller = new AbortController();
@@ -152,7 +181,7 @@ export const createIssueReporter = (config: IssueReporterConfig): IssueReporter 
         try {
           response = await resolved.fetch(`${resolved.endpoint}/${API_VERSION}/reports`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body,
             signal: controller.signal,
           });
@@ -195,6 +224,18 @@ export const createIssueReporter = (config: IssueReporterConfig): IssueReporter 
             reportId,
             status: response.status,
             retryAfterSeconds: error.retryAfterSeconds,
+          });
+        }
+        if (
+          error.code === 'unauthorized' ||
+          error.code === 'forbidden' ||
+          error.code === 'auth_unavailable'
+        ) {
+          emitDiagnostic(resolved, {
+            event: 'auth_failed',
+            reportId,
+            status: response.status,
+            reason: authFailureReason(error),
           });
         }
         throw error;

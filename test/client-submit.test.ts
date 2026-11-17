@@ -95,6 +95,87 @@ describe('createIssueReporter', () => {
     expect(init.body).not.toMatch(/authorization|cookie|credential/i);
   });
 
+  it('adds the SSO bearer token as a header without putting it in the report', async () => {
+    const token = 'sso-token-value';
+    const events: IssueReporterDiagnostic[] = [];
+    const config = makeConfig({
+      auth: { getBearerToken: async () => token },
+      onDiagnostic: (event) => events.push(event),
+    });
+
+    const result = await createIssueReporter(config).submit(submission());
+
+    expect(result.ok).toBe(true);
+    const [, init] = (config.fetch as MockFetch).mock.calls[0]!;
+    expect(init.headers).toEqual({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    });
+    expect(init.body).not.toContain(token);
+    expect(events).toEqual([
+      { event: 'auth_required', reportId: fixtureReportId },
+      { event: 'request_started', reportId: fixtureReportId },
+      { event: 'response_received', reportId: fixtureReportId, status: 202 },
+    ]);
+  });
+
+  it('omits the header when no token is available and maps the 401 response', async () => {
+    const events: IssueReporterDiagnostic[] = [];
+    const config = makeConfig({
+      auth: { getBearerToken: async () => null },
+      fetch: mockFetch(401, { error: 'unauthorized', reason: 'missing_token' }),
+      onDiagnostic: (event) => events.push(event),
+    });
+
+    const result = await createIssueReporter(config).submit(submission());
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'unauthorized', status: 401, reason: 'missing_token' },
+    });
+    const [, init] = (config.fetch as MockFetch).mock.calls[0]!;
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(events).toEqual([
+      { event: 'auth_required', reportId: fixtureReportId },
+      { event: 'request_started', reportId: fixtureReportId },
+      { event: 'response_received', reportId: fixtureReportId, status: 401 },
+      {
+        event: 'auth_failed',
+        reportId: fixtureReportId,
+        status: 401,
+        reason: 'missing_token',
+      },
+    ]);
+  });
+
+  it('fails locally when the token provider throws', async () => {
+    const events: IssueReporterDiagnostic[] = [];
+    const config = makeConfig({
+      auth: {
+        getBearerToken: async () => {
+          throw new Error('session unavailable');
+        },
+      },
+      onDiagnostic: (event) => events.push(event),
+    });
+
+    const result = await createIssueReporter(config).submit(submission());
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'unauthorized', reason: 'token_provider_failed' },
+    });
+    expect(config.fetch).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { event: 'auth_required', reportId: fixtureReportId },
+      {
+        event: 'auth_failed',
+        reportId: fixtureReportId,
+        reason: 'token_provider_failed',
+      },
+    ]);
+  });
+
   it('generates a report id when the caller omits it', async () => {
     const config = makeConfig();
     const input = submission();
@@ -122,11 +203,14 @@ describe('createIssueReporter', () => {
   it.each<[number, unknown, IssueReporterErrorCode | null]>([
     [202, { reportId: fixtureReportId, status: 'created' }, null],
     [400, { error: 'validation_failed', issues: [{ path: ['summary'] }] }, 'validation'],
+    [401, { error: 'unauthorized', reason: 'missing_token' }, 'unauthorized'],
+    [403, { error: 'forbidden', reason: 'not_allowed' }, 'forbidden'],
     [403, { error: 'forbidden_origin' }, 'forbidden_origin'],
     [405, { error: 'method_not_allowed' }, 'server'],
     [413, { error: 'payload_too_large' }, 'payload_too_large'],
     [429, { error: 'rate_limited', retryAfterSeconds: 60 }, 'rate_limited'],
     [500, { error: 'internal_error' }, 'server'],
+    [503, { error: 'auth_unavailable', reason: 'auth_unavailable' }, 'auth_unavailable'],
   ])('maps HTTP %s', async (status, body, code) => {
     const result = await createIssueReporter(makeConfig({ fetch: mockFetch(status, body) })).submit(
       submission(),

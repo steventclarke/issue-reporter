@@ -21,11 +21,22 @@ export const SCREENSHOT_CONTENT_TYPES = ['image/jpeg', 'image/png'] as const;
 export const REPORT_STATUSES = ['receiving', 'queued', 'created', 'failed'] as const;
 export const ERROR_CODES = [
   'validation_failed',
+  'unauthorized',
+  'forbidden',
   'forbidden_origin',
   'method_not_allowed',
   'payload_too_large',
   'rate_limited',
+  'auth_unavailable',
   'internal_error',
+] as const;
+export const AUTH_FAILURE_REASONS = [
+  'missing_token',
+  'invalid_token',
+  'expired_token',
+  'not_allowed',
+  'token_provider_failed',
+  'auth_unavailable',
 ] as const;
 
 export const appSlugSchema = slugSchema;
@@ -35,6 +46,7 @@ export const platformSchema = slugSchema;
 export const reporterProviderSchema = slugSchema;
 export const logLevelSchema = z.enum(LOG_LEVELS);
 export const screenshotContentTypeSchema = z.enum(SCREENSHOT_CONTENT_TYPES);
+export const authFailureReasonSchema = z.enum(AUTH_FAILURE_REASONS);
 
 export const jsonValueSchema = z.json();
 export const appDataSchema = jsonValueSchema;
@@ -121,6 +133,7 @@ export const errorResponseSchema = z
     error: z.enum(ERROR_CODES),
     issues: z.array(z.unknown()).optional(),
     retryAfterSeconds: z.number().int().positive().optional(),
+    reason: authFailureReasonSchema.optional(),
   })
   .strip();
 
@@ -140,3 +153,4 @@ export type IssueReportRequest = z.infer<typeof issueReportRequestSchema>;
 export type ReportStatus = z.infer<typeof reportStatusSchema>;
 export type AcceptedReportResponse = z.infer<typeof acceptedReportResponseSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+export type AuthFailureReason = z.infer<typeof authFailureReasonSchema>;
