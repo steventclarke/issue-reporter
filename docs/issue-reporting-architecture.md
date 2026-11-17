@@ -17,8 +17,8 @@ Deployment view across the client, the public edge, and the platform-global back
 flowchart TB
   subgraph Client["Iron Altar client — steventclarke/iron-altar"]
     UI["Report form<br/>src/app/report.tsx"]
-    SNAP["Screenshot capture<br/>app-data snapshot<br/>logs + stack traces"]
-    LIB["@issue-reporter/client<br/>contract · redaction<br/>transport · typed errors"]
+    SNAP["Screenshot capture<br/>arbitrary app-data snapshot<br/>logs + stack traces"]
+    LIB["@issue-reporter/client<br/>app-agnostic contract · redaction<br/>transport · typed errors"]
     UI --> SNAP
     SNAP --> LIB
   end
@@ -72,6 +72,9 @@ flowchart TB
 
 `@issue-reporter/client` is published from the `issue-reporter` repository and re-exports
 the shared contract and redaction from `@issue-reporter/core`; see design §6.7 and §8.12.
+Core is app-agnostic: it validates generic slugs and arbitrary JSON, while tenant config
+defines the allowed apps, environments, categories, reporter providers, and app-specific
+payload fields. Iron Altar is shown as the first tenant.
 
 **Public read path.** The issue body links `https://issues.stevenclarke.dev/attachments/...`,
 which CloudFront serves directly from S3 through OAC without invoking Lambda.
@@ -96,7 +99,7 @@ sequenceDiagram
   C->>CF: POST /v1/reports
   CF->>I: signed origin request
   I->>I: verify origin allowlist
-  I->>I: parse JSON, reject oversize, Zod validate
+  I->>I: parse JSON, reject oversize, validate contract + app config
   alt honeypot field populated
     I-->>C: 202 fake success, nothing stored
   else valid submission

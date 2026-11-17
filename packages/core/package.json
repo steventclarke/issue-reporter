@@ -17,6 +17,9 @@
     "dist"
   ],
   "sideEffects": false,
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "access": "restricted"

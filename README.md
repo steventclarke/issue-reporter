@@ -20,6 +20,9 @@ It also publishes the reusable client libraries consumed by tenant applications.
 `client` depends on `core`; the Lambda handlers depend on `core` at build time and never
 import `client`. Both packages publish CommonJS and ESM builds with TypeScript declarations.
 
+`core` is app-agnostic: slugs, environments, categories, reporter providers, app data, and
+diagnostics are supplied by tenants; no tenant-specific schema is encoded in it.
+
 ## Development
 
 Requires Node 22 or newer and npm.
