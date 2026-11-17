@@ -17,6 +17,9 @@
     "dist"
   ],
   "sideEffects": false,
+  "dependencies": {
+    "@issue-reporter/core": "0.1.0"
+  },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "access": "restricted"

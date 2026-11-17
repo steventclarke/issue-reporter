@@ -155,22 +155,22 @@ declaring any phase done.
       `extraRedactionPatterns`, and tenant overrides.
 - [x] Add contract fixtures shared with the backend validation tests.
 
-### Phase 3: Client package (`@issue-reporter/client`)
+### Phase 3: Client package (`@issue-reporter/client`) — Completed
 
-- [ ] Add `createIssueReporter(config)` with validation of endpoint, app slug,
+- [x] Add `createIssueReporter(config)` with validation of endpoint, app slug,
       environment, storage adapter, prefix, injected `fetch`, timeout, and extra patterns.
-- [ ] Add `submit(input)`: redact, serialize, enforce limits locally, `POST /v1/reports`,
+- [x] Add `submit(input)`: redact, serialize, enforce limits locally, `POST /v1/reports`,
       and map responses to typed results.
-- [ ] Add `createReportId()` and `getInstallationId()` backed by the tenant storage
+- [x] Add `createReportId()` and `getInstallationId()` backed by the tenant storage
       adapter with `crypto.randomUUID()` fallback generation.
-- [ ] Add `IssueReporterError` and response-to-error mapping for every documented status.
-- [ ] Add `estimateBase64Bytes` and re-export shared limits and redaction from `core`.
-- [ ] Add metadata-only `onDiagnostic` events (`request_started`, `response_received`,
+- [x] Add `IssueReporterError` and response-to-error mapping for every documented status.
+- [x] Add `estimateBase64Bytes` and re-export shared limits and redaction from `core`.
+- [x] Add metadata-only `onDiagnostic` events (`request_started`, `response_received`,
       `rate_limited`); never emit report content.
-- [ ] Add unit tests for config validation, request shape, headers, injected `fetch`,
+- [x] Add unit tests for config validation, request shape, headers, injected `fetch`,
       `AbortController` timeout, each error status, ID generation/reuse, adapter failures,
       redaction, and size limits.
-- [ ] Add a bundle test proving no React, React Native, Expo, AsyncStorage, or DOM imports,
+- [x] Add a bundle test proving no React, React Native, Expo, AsyncStorage, or DOM imports,
       with Node and ESM builds.
 
 ### Phase 4: Versioning and publishing

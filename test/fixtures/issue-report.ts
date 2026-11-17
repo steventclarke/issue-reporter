@@ -1,11 +1,13 @@
 import type { IssueReportRequest } from '../../packages/core/src';
 
+export const fixtureApp = 'example-app';
+export const fixtureEnvironment = 'production';
 export const fixtureReportId = 'b0f6d8c4-4e84-4e42-8c28-6a4f7c5e2f11';
 export const fixtureInstallationId = '0b8c5e42-9f11-4c1a-8c2e-1f7a3d6b9e20';
 
 export const validReportRequest: IssueReportRequest = {
-  app: 'example-app',
-  environment: 'production',
+  app: fixtureApp,
+  environment: fixtureEnvironment,
   reportId: fixtureReportId,
   installationId: fixtureInstallationId,
   category: 'bug',

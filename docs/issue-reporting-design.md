@@ -509,6 +509,11 @@ type IssueReporterConfig = {
 };
 ```
 
+`submit()` resolves to `{ ok: true, reportId, status }` or
+`{ ok: false, reportId, error: IssueReporterError }`; it does not throw for report failures.
+`IssueReporterDiagnostic` contains only `event`, `reportId`, `status`, and
+`retryAfterSeconds`.
+
 Behavioral guarantees:
 
 - Sends `Content-Type: application/json` and never sends credentials or app secrets.
@@ -518,6 +523,7 @@ Behavioral guarantees:
 - Uses the injected `fetch`, so React Native, browsers, and tests share one implementation;
   defaults to the global `fetch` when present.
 - Applies `timeoutMs` through `AbortController`; a timeout surfaces as `network`.
+  The default is 30 seconds and must be a positive integer.
 - Reports only metadata through `onDiagnostic` (for example, `request_started`,
   `response_received`, `rate_limited`) — never report content.
 
