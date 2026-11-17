@@ -52,6 +52,9 @@ backend, the shared contract/redaction code, the client library, and the public 
   each issue.
 - **Alarms:** start with Lambda error and DLQ-depth alarms, then validate thresholds
   against real traffic and tune them (Phase 11).
+- **App-agnostic core:** no tenant app slugs, environments, categories, providers, database
+  shape, or diagnostic fields are hardcoded in `@issue-reporter/core`; tenants and backend
+  config supply their own values and arbitrary JSON snapshots.
 - **Screenshots:** manual removal only in v1; no crop/redaction tool.
 - **Web capture:** imperfect SVG/chart fidelity accepted for v1.
 

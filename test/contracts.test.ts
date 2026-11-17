@@ -1,6 +1,7 @@
 import {
   acceptedReportResponseSchema,
   appDataSchema,
+  diagnosticsSchema,
   errorResponseSchema,
   issueReportRequestSchema,
   type IssueReportRequest,
@@ -12,6 +13,19 @@ type RequestMutator = (request: IssueReportRequest) => void;
 describe('issueReportRequestSchema', () => {
   it('accepts the shared contract fixture', () => {
     expect(issueReportRequestSchema.safeParse(cloneValidReportRequest()).success).toBe(true);
+  });
+
+  it('accepts application-specific slugs and arbitrary JSON data', () => {
+    const request = cloneValidReportRequest();
+    request.app = 'iron-altar';
+    request.environment = 'preview';
+    request.category = 'enhancement';
+    request.reporter!.provider = 'google';
+    request.client.platform = 'web';
+    request.appData = { any: { nested: [1, 'two', null] } };
+    request.diagnostics = { customMetric: 7, tags: ['a', 'b'] };
+
+    expect(issueReportRequestSchema.safeParse(request).success).toBe(true);
   });
 
   it('accepts fields at their maximum lengths', () => {
@@ -39,12 +53,14 @@ describe('issueReportRequestSchema', () => {
   });
 
   it.each<[string, RequestMutator]>([
-    ['unsupported app', (request) => void ((request as { app: string }).app = 'other-app')],
+    ['invalid app slug', (request) => void (request.app = 'Not a slug!')],
+    ['invalid environment slug', (request) => void (request.environment = 'Not an environment!')],
+    ['invalid category slug', (request) => void (request.category = 'spam category')],
     [
-      'invalid environment',
-      (request) => void ((request as { environment: string }).environment = 'staging'),
+      'invalid reporter provider slug',
+      (request) => void (request.reporter!.provider = 'Google SSO'),
     ],
-    ['invalid category', (request) => void ((request as { category: string }).category = 'spam')],
+    ['invalid client platform slug', (request) => void (request.client.platform = 'Mobile')],
     ['invalid reportId', (request) => void (request.reportId = 'not-a-uuid')],
     ['short summary', (request) => void (request.summary = 'ab')],
     ['long summary', (request) => void (request.summary = 's'.repeat(121))],
@@ -54,13 +70,10 @@ describe('issueReportRequestSchema', () => {
     ['long contact', (request) => void (request.contact = 'c'.repeat(201))],
     ['invalid reporter email', (request) => void (request.reporter!.email = 'not-an-email')],
     [
-      'invalid platform',
-      (request) => void ((request.diagnostics as { platform: string }).platform = 'other'),
+      'invalid log level',
+      (request) => void ((request.logs![0] as { level: string }).level = 'trace'),
     ],
-    [
-      'invalid calendar date',
-      (request) => void (request.appData!.profile!.lastActivityDate = '14-11-2026'),
-    ],
+    ['invalid log timestamp', (request) => void (request.logs![0]!.timestamp = 'yesterday')],
     [
       'invalid screenshot content type',
       (request) => void ((request.screenshot as { contentType: string }).contentType = 'image/gif'),
@@ -90,25 +103,28 @@ describe('issueReportRequestSchema', () => {
     expect(issueReportRequestSchema.safeParse(request).success).toBe(false);
   });
 
-  it('strips unknown keys at the root and in nested data', () => {
+  it('strips unknown root keys while preserving tenant JSON data', () => {
+    const base = cloneValidReportRequest();
     const request = {
-      ...cloneValidReportRequest(),
+      ...base,
       unexpectedRoot: 'drop',
-      appData: { ...cloneValidReportRequest().appData, unexpectedAppData: 'drop' },
-      diagnostics: { ...cloneValidReportRequest().diagnostics, unexpectedDiagnostics: 'drop' },
+      appData: { ...(base.appData as Record<string, unknown>), unexpectedAppData: 'kept' },
+      diagnostics: { ...base.diagnostics!, unexpectedDiagnostics: 'kept' },
     };
 
     const parsed = issueReportRequestSchema.parse(request);
 
     expect(parsed).not.toHaveProperty('unexpectedRoot');
-    expect(parsed.appData).not.toHaveProperty('unexpectedAppData');
-    expect(parsed.diagnostics).not.toHaveProperty('unexpectedDiagnostics');
+    expect(parsed.appData).toHaveProperty('unexpectedAppData');
+    expect(parsed.diagnostics).toHaveProperty('unexpectedDiagnostics');
   });
 
-  it('validates app data and log/stack-trace shapes independently', () => {
+  it('validates generic JSON and log/stack-trace shapes independently', () => {
     const request = cloneValidReportRequest();
 
     expect(appDataSchema.safeParse(request.appData).success).toBe(true);
+    expect(appDataSchema.safeParse(new Date()).success).toBe(false);
+    expect(diagnosticsSchema.safeParse({ arbitrary: [1, 'two', null] }).success).toBe(true);
     expect(
       issueReportRequestSchema.shape.logs.safeParse([{ timestamp: 'yesterday', level: 'log' }])
         .success,

@@ -111,7 +111,8 @@ describe('redactReport', () => {
     expect(serialized).not.toContain('Bearer');
     expect(serialized).not.toContain('sk-');
     expect(serialized).not.toContain('eyJ');
-    expect(redacted.appData?.sessions).toHaveLength(1);
+    const appData = redacted.appData as { records: unknown[] } | null | undefined;
+    expect(appData?.records).toHaveLength(1);
     expect(redacted.logs).toHaveLength(1);
     expect(redacted.stackTraces).toHaveLength(1);
   });
