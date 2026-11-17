@@ -127,15 +127,15 @@ declaring any phase done.
 - [x] Duplicate the iron-altar branching and agent guidelines into `AGENTS.md`.
 - [x] Review the plan and resolve the open questions in §7.
 
-### Phase 1: Repository foundation and tooling
+### Phase 1: Repository foundation and tooling — Completed
 
-- [ ] Initialize the npm workspace root with `packages/core` and `packages/client`.
-- [ ] Add strict TypeScript config plus `build`, `typecheck`, `lint`, `format:check`, and
+- [x] Initialize the npm workspace root with `packages/core` and `packages/client`.
+- [x] Add strict TypeScript config plus `build`, `typecheck`, `lint`, `format:check`, and
       `test` scripts.
-- [ ] Add the test runner configuration and unit-test layout.
-- [ ] Add PR CI checks for format, lint, typecheck, test, and build.
-- [ ] Add `.gitignore`, `README.md`, and `LICENSE` as appropriate for a releasable repo.
-- [ ] Configure publishing to a private registry (GitHub Packages by default) and document
+- [x] Add the test runner configuration and unit-test layout.
+- [x] Add PR CI checks for format, lint, typecheck, test, and build.
+- [x] Add `.gitignore`, `README.md`, and `LICENSE` as appropriate for a releasable repo.
+- [x] Configure publishing to a private registry (GitHub Packages by default) and document
       the authentication/`.npmrc` setup required by tenant consumers.
 
 ### Phase 2: Shared core package (`@issue-reporter/core`)
@@ -362,21 +362,21 @@ declaring any phase done.
 These answers supersede the corresponding recommendations in design §15; where this plan
 and the design document differ, this plan is authoritative.
 
-| #  | Decision                                                                                                                                                                                          |
-| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1  | Automatic data and diagnostics default **on**, with preview and toggle.                                                                                                                          |
-| 2  | Keep the initial 5/10/20 per-hour limits; validate against real usage in Phase 11.                                                                                                               |
-| 3  | Expire sanitized reports and screenshots **30 days after the linked issue is closed** (Phase 6.1).                                                                                              |
-| 4  | Include tenant Google SSO reporter identity in the report and public issue; GitHub comments are the primary follow-up channel. Keep the optional public contact field.                          |
-| 5  | Title issues `[<app> v<version>] <summary>` using `client.version` (fallback: diagnostics version or `unknown`).                                                                                 |
-| 6  | One platform-owned GitHub App installed on selected tenant repositories.                                                                                                                         |
-| 7  | Start with Lambda error and DLQ-depth alarms, then validate thresholds against real traffic and tune them (Phase 11).                                                                           |
-| 8  | Preview reports do create public issues; version and environment must be visible in each issue.                                                                                                   |
-| 9  | Manual screenshot removal only; no crop/redaction tool in v1.                                                                                                                                     |
-| 10 | Keep viewer IP internal for rate limiting; never include it in the public report.                                                                                                                 |
-| 11 | Accept imperfect web SVG/chart captures for v1.                                                                                                                                                  |
-| 12 | Publish to a private registry first (GitHub Packages by default); public npm only when the repository is open-sourced.                                                                           |
-| 13 | Use both the `/v1` path and a client semver-major check against the deployed API major, with a documented opt-out.                                                                              |
+| #   | Decision                                                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Automatic data and diagnostics default **on**, with preview and toggle.                                                                                                |
+| 2   | Keep the initial 5/10/20 per-hour limits; validate against real usage in Phase 11.                                                                                     |
+| 3   | Expire sanitized reports and screenshots **30 days after the linked issue is closed** (Phase 6.1).                                                                     |
+| 4   | Include tenant Google SSO reporter identity in the report and public issue; GitHub comments are the primary follow-up channel. Keep the optional public contact field. |
+| 5   | Title issues `[<app> v<version>] <summary>` using `client.version` (fallback: diagnostics version or `unknown`).                                                       |
+| 6   | One platform-owned GitHub App installed on selected tenant repositories.                                                                                               |
+| 7   | Start with Lambda error and DLQ-depth alarms, then validate thresholds against real traffic and tune them (Phase 11).                                                  |
+| 8   | Preview reports do create public issues; version and environment must be visible in each issue.                                                                        |
+| 9   | Manual screenshot removal only; no crop/redaction tool in v1.                                                                                                          |
+| 10  | Keep viewer IP internal for rate limiting; never include it in the public report.                                                                                      |
+| 11  | Accept imperfect web SVG/chart captures for v1.                                                                                                                        |
+| 12  | Publish to a private registry first (GitHub Packages by default); public npm only when the repository is open-sourced.                                                 |
+| 13  | Use both the `/v1` path and a client semver-major check against the deployed API major, with a documented opt-out.                                                     |
 
 ## 8. Definition of done
 

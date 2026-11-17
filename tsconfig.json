@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node", "jest"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "paths": {
+      "@issue-reporter/core": ["./packages/core/src/index.ts"],
+      "@issue-reporter/client": ["./packages/client/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "test/**/*.ts"]
+}
