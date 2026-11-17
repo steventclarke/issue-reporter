@@ -15,6 +15,10 @@ client and backend are designed so the same backend can serve other tenant appli
 later without creating a new intake service per app. The backend lives in its own
 repository so it can be reused, and potentially open-sourced, independently of Iron Altar.
 
+`@issue-reporter/core` is app-agnostic: it validates generic slugs and arbitrary JSON, while
+tenants and backend config supply the allowed values and the tenant-specific data shapes.
+Iron Altar is the first tenant and is used as an example throughout this document.
+
 ---
 
 ## 1. Summary
@@ -36,9 +40,10 @@ The report contains:
 
 - user-written text (summary, description, expected behavior, optional contact);
 - an optional screenshot of the screen at the time the report was opened;
-- runtime diagnostics (versions, platform, screen, route, execution environment);
-- a full local app-data snapshot (profile, sessions, sets, body weights, exercises, draft,
-  settings);
+- tenant-defined runtime diagnostics (for Iron Altar: versions, platform, screen, route,
+  execution environment);
+- a full tenant app-data snapshot (for Iron Altar: profile, sessions, sets, body weights,
+  exercises, draft, settings);
 - recent application logs and stack traces;
 - report metadata (app, environment, report ID, installation ID).
 
@@ -156,22 +161,27 @@ so the backend does not create a duplicate issue.
 
 ### 4.2 Automatic data
 
-When the data-and-diagnostics toggle is on, the client includes the full local database,
-recent logs, recent stack traces, and runtime diagnostics. Only token- and secret-like
-values are redacted; no other app data is intentionally excluded.
+When the data-and-diagnostics toggle is on, the client includes the full tenant app-data
+snapshot, recent logs, recent stack traces, and runtime diagnostics. Only token- and
+secret-like values are redacted; no other app data is intentionally excluded.
+
+These types are published by `@issue-reporter/core` and are deliberately app-agnostic.
+Tenants build the payload from their own schemas; core only validates the shared envelope.
 
 ```ts
-import type { DatabaseShape } from '@/data/db/schema';
+import type { JsonValue } from '@issue-reporter/core';
 
-/** Exact persisted document from AsyncStorage: profile, settings, exercises,
- * sessions, sets, bodyWeights, and draft. */
-type AppDataSnapshot = DatabaseShape;
+/** Any JSON-serializable tenant document. Iron Altar supplies its DatabaseShape. */
+type AppDataSnapshot = JsonValue;
+
+/** Any JSON object. Tenants choose the diagnostic keys they need. */
+type Diagnostics = Record<string, JsonValue>;
 
 type LogEntry = {
   timestamp: string;
   level: 'log' | 'info' | 'warn' | 'error';
   message: string;
-  context?: Record<string, unknown>;
+  context?: Record<string, JsonValue>;
 };
 
 type StackTraceEntry = {
@@ -180,47 +190,19 @@ type StackTraceEntry = {
   stack: string;
   isFatal: boolean;
 };
-
-type Diagnostics = {
-  appVersion: string;
-  buildNumber: string | null;
-  platform: 'ios' | 'android' | 'web';
-  osVersion: string | null;
-  device: string | null;
-  screen: {
-    width: number;
-    height: number;
-    scale: number;
-  };
-  route: string;
-  database: {
-    version: number;
-    profileExists: boolean;
-    sessions: number;
-    sets: number;
-    bodyWeights: number;
-    exercises: number;
-    draftActive: boolean;
-  };
-  settings: {
-    restSeconds: number;
-    unitPref: 'kg' | 'lb' | 'st';
-  };
-  executionEnvironment: string | null;
-  sessionId: string | null;
-};
 ```
 
 Capture rules:
 
-- **App data:** send the current `DatabaseShape` document exactly as persisted, including
-  profile name, workout notes, body-weight values, set weights/reps, exercise history, and
-  the active draft.
+- **App data:** send the tenant's current persisted document exactly as persisted. For Iron
+  Altar this is the `DatabaseShape` document, including profile name, workout notes,
+  body-weight values, set weights/reps, exercise history, and the active draft; that type
+  lives in the tenant repository, not in core.
 - **Logs:** keep the most recent 500 entries or 256 KB, whichever is smaller, by wrapping
-  `console.log/info/warn/error` and capturing structured context.
+  `console.log/info/warn/error` and capturing structured JSON context.
 - **Stack traces:** keep the most recent 10 unhandled errors from native `ErrorUtils` and
   web `window.onerror` / `unhandledrejection`.
-- **Runtime diagnostics:** include the summary above for quick triage; the app-data
+- **Runtime diagnostics:** include a tenant-defined JSON object for quick triage; the app-data
   snapshot remains the authoritative record.
 - **Redaction:** replace known token/secret patterns with `[REDACTED]` in logs, stack
   traces, user text, and app-data strings before submission. If a log line cannot be
@@ -237,8 +219,8 @@ Stored internally and/or included in the public issue:
 | ----------------------- | ----------------------- | -------------------------------------- |
 | `reportId`              | Yes, in hidden metadata | Client-generated UUID; idempotency key |
 | `installationId`        | Yes, in hidden metadata | Pseudonymous stable install ID         |
-| App slug                | Yes                     | `iron-altar`                           |
-| Environment             | Yes                     | `prod`, `preview`, or `dev`            |
+| App slug                | Yes                     | Config-defined slug, e.g. `iron-altar` |
+| Environment             | Yes                     | Config-defined slug, e.g. `prod`       |
 | Sanitized report JSON   | Yes                     | S3 object linked from the issue        |
 | Report status           | Internal                | `queued`, `created`, `failed`          |
 | GitHub issue number/URL | Internal and issue      | Stored in DynamoDB                     |
@@ -468,10 +450,10 @@ function detectEnvironment(): 'prod' | 'preview' | 'dev' {
 }
 ```
 
-The app passes the result to `createIssueReporter`; the library validates it against the
-allowed values and includes it in the request. The backend validates the environment value
-again. Environment does not select the destination repository; the backend app config
-does.
+The app passes the result to `createIssueReporter`; the library validates the slug format
+and includes it in the request. The app checks the value against its own allowed values, and
+the backend validates it against the app config again. Environment does not select the
+destination repository; the backend app config does.
 
 ### 6.6 Report ID and retries
 
@@ -514,7 +496,7 @@ Configuration:
 type IssueReporterConfig = {
   endpoint: string;
   app: string;
-  environment: 'prod' | 'preview' | 'dev';
+  environment: string;
   storage: {
     get(key: string): Promise<string | null>;
     set(key: string, value: string): Promise<void>;
@@ -549,6 +531,7 @@ const result = await reporter.submit({
   description,
   expected,
   contact,
+  reporter,
   appData,
   diagnostics,
   logs,
@@ -612,27 +595,35 @@ POST https://issues.stevenclarke.dev/v1/reports
 ### 7.2 Request
 
 This shape is published as `IssueReportRequest` by `@issue-reporter/core` and re-exported
-by `@issue-reporter/client`; the app imports it rather than redeclaring it.
+by `@issue-reporter/client`; the app imports it rather than redeclaring it. Core validates
+slug formats and JSON shapes; the backend config defines which app, environment, category,
+and reporter-provider values are accepted for each tenant.
 
 ```ts
 type IssueReportRequest = {
-  app: 'iron-altar';
-  environment: 'prod' | 'preview' | 'dev';
+  app: string;
+  environment: string;
   reportId: string;
   installationId: string;
-  category: 'bug' | 'feature' | 'other';
+  category: string;
   summary: string;
   description: string;
   expected?: string;
   contact?: string;
-  appData?: AppDataSnapshot | null;
-  diagnostics?: Diagnostics | null;
+  reporter?: {
+    provider: string;
+    subject: string;
+    email?: string | null;
+    name?: string | null;
+  } | null;
+  appData?: JsonValue | null;
+  diagnostics?: Record<string, JsonValue> | null;
   logs?: LogEntry[] | null;
   stackTraces?: StackTraceEntry[] | null;
   client: {
     version: string;
     build: string | null;
-    platform: 'ios' | 'android' | 'web';
+    platform: string;
     osVersion: string | null;
     device: string | null;
     route: string;
@@ -645,7 +636,7 @@ type IssueReportRequest = {
 };
 ```
 
-Example (screenshot truncated):
+Example with arbitrary tenant JSON (screenshot data shortened):
 
 ```json
 {
@@ -654,113 +645,55 @@ Example (screenshot truncated):
   "reportId": "b0f6d8c4-4e84-4e42-8c28-6a4f7c5e2f11",
   "installationId": "0b8c5e42-9f11-4c1a-8c2e-1f7a3d6b9e20",
   "category": "bug",
-  "summary": "Rest timer does not start after a set",
-  "description": "I logged a set and the rest timer stayed at 0:00.",
-  "expected": "The rest timer should start automatically.",
+  "summary": "Repeated action leaves the screen in an unexpected state",
+  "description": "I repeated the action twice and the screen stopped updating.",
+  "expected": "The screen should keep updating after each action.",
   "contact": "",
+  "reporter": {
+    "provider": "example-sso",
+    "subject": "example-user-123",
+    "email": "alex@example.com",
+    "name": "Alex"
+  },
   "appData": {
-    "version": 5,
-    "profile": {
-      "id": "profile-1",
-      "name": "Alex",
-      "characterId": "barbarian",
-      "unitPref": "kg",
-      "createdAt": "2026-01-04T18:20:00.000Z",
-      "xp": 4200,
-      "lastActivityDate": "2026-11-14"
-    },
-    "settings": { "restSeconds": 120 },
-    "exercises": [
-      {
-        "id": "exercise-1",
-        "name": "Back Squat",
-        "category": "barbell",
-        "isMainLift": true,
-        "mainLift": "squat",
-        "muscleGroup": "legs"
-      }
-    ],
-    "sessions": [
-      {
-        "id": "session-1",
-        "date": "2026-11-14",
-        "startedAt": "2026-11-14T17:05:00.000Z",
-        "endedAt": "2026-11-14T17:52:00.000Z",
-        "notes": "Felt strong",
-        "completed": true,
-        "totalVolumeKg": 5000,
-        "xpEarned": 120
-      }
-    ],
-    "sets": [
-      {
-        "id": "set-1",
-        "sessionId": "session-1",
-        "exerciseId": "exercise-1",
-        "weightKg": 100,
-        "reps": 5,
-        "isWarmup": false,
-        "notes": "RPE 8",
-        "order": 1
-      }
-    ],
-    "bodyWeights": [
-      {
-        "id": "body-weight-1",
-        "date": "2026-11-14T06:30:00.000Z",
-        "weightKg": 82.4
-      }
-    ],
+    "schemaVersion": 4,
+    "profile": { "displayName": "Alex", "preferences": { "unit": "kg" } },
+    "records": [{ "id": "record-1", "value": 100, "tags": ["sample"] }],
     "draft": null
   },
   "diagnostics": {
-    "appVersion": "1.0.0",
-    "buildNumber": null,
-    "platform": "ios",
-    "osVersion": "18.2",
-    "device": "iPhone",
+    "runtime": "example-runtime/1.0.0",
     "screen": { "width": 1170, "height": 2532, "scale": 3 },
-    "route": "/session/abc",
-    "database": {
-      "version": 5,
-      "profileExists": true,
-      "sessions": 42,
-      "sets": 318,
-      "bodyWeights": 12,
-      "exercises": 15,
-      "draftActive": true
-    },
-    "settings": { "restSeconds": 120, "unitPref": "kg" },
-    "executionEnvironment": "storeClient",
-    "sessionId": "abc"
+    "flags": { "beta": true, "offlineMode": false },
+    "activeRoute": "/records/record-1"
   },
   "logs": [
     {
       "timestamp": "2026-11-14T17:52:03.120Z",
       "level": "error",
-      "message": "Rest timer did not start",
-      "context": { "sessionId": "session-1", "restSeconds": 120 }
+      "message": "Action did not complete",
+      "context": { "recordId": "record-1", "retryCount": 2 }
     }
   ],
   "stackTraces": [
     {
       "timestamp": "2026-11-14T17:52:03.121Z",
       "message": "TypeError: Cannot read properties of null",
-      "stack": "at startRestTimer (src/state/rest-timer-store.ts:42:11)",
+      "stack": "at updateView (src/state/example-store.ts:42:11)",
       "isFatal": false
     }
   ],
   "client": {
     "version": "1.0.0",
     "build": null,
-    "platform": "ios",
+    "platform": "mobile",
     "osVersion": "18.2",
-    "device": "iPhone",
-    "route": "/session/abc"
+    "device": "Example device",
+    "route": "/records/record-1"
   },
   "screenshot": {
     "contentType": "image/jpeg",
-    "dataBase64": "/9j/4AAQSkZJRgABAQ..."
+    "dataBase64": "L2Zha2UganBlZyBieXRlcw=="
   },
   "website": ""
 }
@@ -804,8 +737,8 @@ The Lambda Function URL and CloudFront must allow `POST`, `OPTIONS`, and the
 - Description: 10–5000 characters.
 - Expected: 2000 characters maximum.
 - Contact: 200 characters maximum.
-- Diagnostics: known fields only; unknown keys stripped.
-- App data: full `DatabaseShape` document; no fields omitted by the client.
+- Diagnostics: generic JSON object; arbitrary tenant keys preserved.
+- App data: arbitrary JSON tenant document; no fields omitted by the client.
 - Secret redaction: known token/secret patterns replaced before size calculation.
 
 The client compresses or resizes the screenshot first when a report is too large. It does
@@ -872,8 +805,10 @@ Inputs from SSM in `us-east-2`:
 
 Configuration:
 
-- `config/applications.ts` gains `issueIntake?: { enabled: boolean; labels?: string[] }`.
-- `iron-altar` enables issue intake.
+- `config/applications.ts` gains `issueIntake?: { enabled: boolean; environments: string[];
+categories: string[]; reporterProviders: string[]; labels?: string[] }`. Core accepts any
+  valid slug; this config defines the allowed values for each tenant.
+- `iron-altar` enables issue intake with its own environments, categories, and provider.
 - The stack builds `APP_CONFIG` and allowed origins from enabled applications.
 - Per-app repository and label configuration is published to SSM.
 
@@ -905,12 +840,13 @@ SSM outputs:
 1. CloudFront forwards the request to the Function URL.
 2. Lambda verifies the origin against the allowlist.
 3. Parse JSON; reject oversized bodies.
-4. Validate with Zod:
+4. Validate with Zod and app config:
    - app exists and has issue intake enabled;
-   - environment is valid;
-   - text lengths;
-   - app data shape (`DatabaseShape`); unknown top-level keys stripped;
-   - diagnostics shape; unknown keys stripped;
+   - environment and category are allowed for that app;
+   - reporter provider is allowed for that app when present;
+   - slug formats and text lengths;
+   - `appData` is JSON; `diagnostics` is a JSON object; tenant keys are preserved while
+     unknown request-envelope keys are stripped;
    - logs and stack-trace array shapes and limits;
    - screenshot content type and base64 size.
 5. If `website` is non-empty, return a generic `202` and stop.
@@ -1126,12 +1062,14 @@ issue-reporter/
   lambda/issue-intake/         ingest and worker handlers
   lib/issue-intake-stack.ts    CDK stack
   bin/app.ts                   CDK app
+  config/applications.ts       tenant enablement and allowed values
 ```
 
 Dependency direction: `client` depends on `core`; the Lambda handlers depend on `core` but
-never on `client`. `core` has no platform dependencies beyond Zod. The Lambda bundle is
-built from the same `core` sources the client publishes, so contract and redaction changes
-ship together.
+never on `client`. `core` has no platform dependencies beyond Zod and contains no
+tenant-specific app data, diagnostic fields, or allowed values. The Lambda bundle is built
+from the same `core` sources the client publishes, so contract and redaction changes ship
+together.
 
 Publishing:
 
@@ -1201,7 +1139,7 @@ is not lost.
 - Exercises: 15
 - Draft active: yes
 
-The complete `DatabaseShape` document is in `report.json`.
+The complete tenant app-data snapshot is in `report.json`.
 
 ## Diagnostics
 
@@ -1391,8 +1329,8 @@ native code or a development build. The trade-off is limited SVG/chart fidelity 
 
 ### Backend
 
-- Zod validation tests for each field and boundary, including `DatabaseShape`, logs, and
-  stack traces.
+- Zod validation tests for each field and boundary, including arbitrary JSON app data,
+  diagnostics, logs, stack traces, and tenant-specific config values.
 - Secret-redaction tests for user text, app data, logs, and stack traces.
 - Rate-limit tests with DynamoDB local or mocked client.
 - Idempotency test: same `reportId` returns the existing report and does not rewrite S3
