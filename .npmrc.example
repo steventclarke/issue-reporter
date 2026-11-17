@@ -1,0 +1,4 @@
+# Copy to ~/.npmrc (or the tenant repo's .npmrc) and replace the token placeholder.
+# The token needs the read:packages scope for GitHub Packages.
+@issue-reporter:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
