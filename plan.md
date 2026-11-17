@@ -5,10 +5,10 @@ Platform-global in-app issue intake for `stevenclarke.dev`, plus the published
 the tenant repositories (first: `steventclarke/iron-altar`); this repository owns the
 backend, the shared contract/redaction code, the client library, and the public endpoint.
 
-- **Status:** Design complete; this plan is awaiting review. No implementation has started.
-- **Design authority:** [`docs/issue-reporting-design.md`](docs/issue-reporting-design.md)
-  (authoritative) and [`docs/issue-reporting-architecture.md`](docs/issue-reporting-architecture.md)
-  (derived diagrams).
+- **Status:** Design complete; open questions resolved below. No implementation has started.
+- **Design background:** [`docs/issue-reporting-design.md`](docs/issue-reporting-design.md)
+  and [`docs/issue-reporting-architecture.md`](docs/issue-reporting-architecture.md)
+  (derived diagrams). This plan is authoritative where review decisions differ (§7).
 - **Endpoint:** `POST https://issues.stevenclarke.dev/v1/reports`.
 - **Developer guidelines:** [`AGENTS.md`](AGENTS.md) — branching, PR workflow, AWS auth,
   commands, CDK workflow, commit, and plan-tracking conventions.
@@ -37,10 +37,23 @@ backend, the shared contract/redaction code, the client library, and the public 
   `SendMessage`.
 - **Limits:** 6 MB request body, 3.5 MB sanitized data/logs/stack traces, 1.5 MB target /
   3 MB hard max decoded screenshot, 5/10/20 reports per hour for installation/IP/app.
-- **Recommended defaults carried into implementation** (confirm at plan review, see
-  §7): automatic data on with preview and toggle; one GitHub App installed on selected
-  repos; private registry first, public npm on open-sourcing; `/v1` plus a client semver
-  major check with opt-out; keep viewer IP out of the public issue.
+- **Review decisions:** automatic data defaults on with preview and toggle; one platform
+  GitHub App installed on selected repos; private registry first (GitHub Packages by
+  default), public npm only on open-sourcing; `/v1` plus a client semver-major check with
+  opt-out; viewer IP stays internal. Full decision log in §7.
+- **Reporter identity:** tenant SSO (Google) supplies the reporter's identity; include it
+  in the report and the public issue so the submitter is known. Primary communication
+  happens in GitHub comments; the optional `contact` field remains available.
+- **Retention:** sanitized reports and screenshots expire 30 days after the linked GitHub
+  issue is closed (§6.1 and §7).
+- **Issue title:** `[<app> v<version>] <summary>`, for example
+  `[iron-altar v1.0.0] Rest timer does not start`.
+- **Preview:** preview reports create public issues, with version and environment shown in
+  each issue.
+- **Alarms:** start with Lambda error and DLQ-depth alarms, then validate thresholds
+  against real traffic and tune them (Phase 11).
+- **Screenshots:** manual removal only in v1; no crop/redaction tool.
+- **Web capture:** imperfect SVG/chart fidelity accepted for v1.
 
 ## 1. Tech stack and repository layout
 
@@ -68,8 +81,12 @@ issue-reporter/
 ## 2. API contract summary
 
 - Request fields: `app`, `environment`, `reportId`, `installationId`, `category`,
-  `summary`, `description`, `expected`, `contact`, `appData`, `diagnostics`, `logs`,
-  `stackTraces`, `client`, `screenshot`, `website` (honeypot). Full shapes in design §7.2.
+  `summary`, `description`, `expected`, `contact`, `reporter`, `appData`, `diagnostics`,
+  `logs`, `stackTraces`, `client`, `screenshot`, `website` (honeypot). Full shapes in
+  design §7.2.
+- `reporter` is optional tenant SSO identity (`provider`, `subject`, `email`, `name`)
+  supplied by the tenant at submission time. The backend treats it as unverified metadata
+  and publishes it in the issue; it is not an authentication or authorization control.
 - Responses: `202` accepted/already accepted (`reportId`, `status`), `400` validation,
   `403` forbidden origin, `405` method not allowed, `413` payload too large, `429` rate
   limited (`retryAfterSeconds`), `500` internal. Honeypot hits return a generic `202`.
@@ -101,14 +118,14 @@ declaring any phase done.
 
 ## 5. Phases and action items
 
-### Phase 0: Design and planning — In review
+### Phase 0: Design and planning — Completed
 
 - [x] Write the design document covering client flow, data collection, API contract,
       privacy model, and `IssueIntakeStack`.
 - [x] Write architecture, ingest/worker sequence, and report-lifecycle diagrams.
 - [x] Write this phased plan with completion checkboxes.
 - [x] Duplicate the iron-altar branching and agent guidelines into `AGENTS.md`.
-- [ ] Review and approve this plan; confirm the open questions in §7.
+- [x] Review the plan and resolve the open questions in §7.
 
 ### Phase 1: Repository foundation and tooling
 
@@ -118,14 +135,14 @@ declaring any phase done.
 - [ ] Add the test runner configuration and unit-test layout.
 - [ ] Add PR CI checks for format, lint, typecheck, test, and build.
 - [ ] Add `.gitignore`, `README.md`, and `LICENSE` as appropriate for a releasable repo.
-- [ ] Decide the initial package registry (private vs public npm) and record the decision
-      here and in `AGENTS.md`.
+- [ ] Configure publishing to a private registry (GitHub Packages by default) and document
+      the authentication/`.npmrc` setup required by tenant consumers.
 
 ### Phase 2: Shared core package (`@issue-reporter/core`)
 
 - [ ] Add `contracts.ts`: `IssueReportRequest`, response types, and Zod schemas for app,
-      environment, category, text lengths, `DatabaseShape`, diagnostics, logs, stack
-      traces, client info, and screenshot.
+      environment, category, text lengths, optional `reporter` SSO identity, `DatabaseShape`,
+      diagnostics, logs, stack traces, client info, and screenshot.
 - [ ] Add `limits.ts`: body/data/screenshot sizes, log and stack-trace counts, rate
       limits, and text-length constants.
 - [ ] Add `redaction.ts`: default secret patterns and recursive `redactReport` covering
@@ -157,8 +174,10 @@ declaring any phase done.
 
 - [ ] Define the coupled versioning scheme for `core`, `client`, and the API major.
 - [ ] Add a release workflow publishing `@issue-reporter/core` and
-      `@issue-reporter/client` with matching versions to the chosen registry.
-- [ ] Add the client's peer/runtime API-major range with a documented opt-out.
+      `@issue-reporter/client` with matching versions to the private registry (GitHub
+      Packages by default).
+- [ ] Keep the `/v1` path and add a client semver-major check against the deployed API
+      major, with a documented opt-out.
 - [ ] Verify a dry-run publish and document the tenant upgrade path.
 
 ### Phase 5: Ingest Lambda
@@ -191,16 +210,31 @@ declaring any phase done.
 - [ ] Skip records already `created`; otherwise read `report.json` from S3.
 - [ ] Load the GitHub App secret from Secrets Manager, normalize escaped newlines, create
       an Octokit App client, and cache installation tokens in memory.
-- [ ] Render the issue body per design §9: sections, full-data and screenshot links,
-      app-data summary, diagnostics JSON, logs/stack traces, triage checklist, hidden
-      metadata comment, "Disabled by reporter." text, and truncation at GitHub's 65,536
-      character limit.
-- [ ] Create the issue with title `[iron-altar] <summary>` and config + category +
+- [ ] Render the issue body per design §9, plus a Reporter section with SSO identity when
+      supplied: sections, full-data and screenshot links, app-data summary, diagnostics
+      JSON, logs/stack traces, triage checklist, hidden metadata comment, "Disabled by
+      reporter." text, and truncation at GitHub's 65,536 character limit. Show app version
+      and environment prominently in the Client section for both prod and preview.
+- [ ] Create the issue with title `[<app> v<version>] <summary>` (from `client.version`,
+      falling back to diagnostics version or `unknown`) and config + category +
       environment labels; retry without labels on GitHub `422`.
 - [ ] Update DynamoDB with `status = created`, `issueNumber`, `issueUrl`, and `updatedAt`;
       mark unrecoverable failures `failed` and let SQS retry to the DLQ.
-- [ ] Add tests with mocked Octokit for success, body links, truncation, label fallback,
-      already-created no-op, retry/DLQ behavior, and absence of secrets in logs.
+- [ ] Add tests with mocked Octokit for success, versioned title, reporter identity,
+      version/environment in body, body links, truncation, label fallback, already-created
+      no-op, retry/DLQ behavior, and absence of secrets in logs.
+
+### Phase 6.1: Attachment retention — Not started
+
+- [ ] Add a daily scheduled retention handler in `lambda/issue-intake/` that finds reports
+      with `status = created`, checks the linked GitHub issue state via the App token, and
+      records the closure date (idempotently) when the issue is closed.
+- [ ] Tag the S3 objects for closed reports so an S3 lifecycle rule expires them 30 days
+      after closure; leave reports with open issues untouched.
+- [ ] Clear the optional DynamoDB `ttl`/closure metadata consistently with attachment
+      expiry; never delete the record before the objects expire.
+- [ ] Add tests for open vs closed issues, idempotent closure tagging, 30-day expiry
+      configuration, and missing GitHub issue/secret handling.
 
 ### Phase 7: CDK infrastructure
 
@@ -211,6 +245,10 @@ declaring any phase done.
 - [ ] Add `ReportsTable` (on-demand, TTL, AWS-managed encryption, `RETAIN`).
 - [ ] Add `AttachmentsBucket` (private, block public access, SSE, TLS enforcement,
       `RETAIN`, abort incomplete multipart uploads).
+- [ ] Add an S3 lifecycle rule expiring objects tagged with the closure marker 30 days
+      after the tag date (Phase 6.1).
+- [ ] Add an EventBridge daily schedule invoking the retention handler with least-privilege
+      permissions.
 - [ ] Add `WorkerQueue` (visibility 180 s, retention 4 days, encryption) and `WorkerDlq`
       (retention 14 days, `maxReceiveCount: 5`).
 - [ ] Add `IngestFunction` and the `AWS_IAM` Function URL with OAC (Node 22, ARM64,
@@ -223,7 +261,8 @@ declaring any phase done.
       `/attachments/*` to S3 with OAC, caching disabled on ingest, allowed methods, HTTPS
       only, TLS 1.2, price class 100, and the four response security headers.
 - [ ] Add the Route 53 A/AAAA alias for `issues.stevenclarke.dev`.
-- [ ] Add ingest, worker, and DLQ-depth alarms publishing to the platform SNS topic.
+- [ ] Add ingest, worker, and DLQ-depth alarms publishing to the platform SNS topic
+      (initial defaults: Lambda `Errors` > 0 over 5 minutes, DLQ depth > 0 over 5 minutes).
 - [ ] Tag all resources `project`, `environment`, `owner`, `application`, `managed-by`.
 - [ ] Add CDK assertions for Function URL OAC, CloudFront behaviors, S3 privacy, DynamoDB
       TTL, SQS/DLQ, alarms, and SSM outputs; keep `cdk-nag` suppressions narrow and
@@ -247,6 +286,10 @@ declaring any phase done.
 - [ ] Submit a report from the preview app; confirm S3 `report.json` + screenshot,
       DynamoDB record, SQS processing, and the GitHub issue with full-data link, logs, and
       stack traces.
+- [ ] Confirm the preview issue is public, titled `[iron-altar v<version>] <summary>`, and
+      clearly indicates environment and version; verify reporter identity when SSO is wired.
+- [ ] Close a test issue and verify the retention handler tags attachments and the
+      lifecycle rule is configured for 30-day expiry (check the computed expiry date).
 - [ ] Resubmit the same `reportId`; confirm no duplicate issue and no S3 rewrite.
 - [ ] Exceed a rate limit and confirm `429` with `retryAfterSeconds`.
 - [ ] Force a worker failure and confirm the `failed` status, retries, DLQ, and alarm.
@@ -256,9 +299,12 @@ declaring any phase done.
 ### Phase 10: Tenant client integration (`steventclarke/iron-altar` repository)
 
 - [ ] Install `@issue-reporter/client`, `expo-file-system`, and
-      `react-native-view-shot` with Expo's resolver, and `html2canvas-pro` separately.
+      `react-native-view-shot` with Expo's resolver, and `html2canvas-pro` separately;
+      configure tenant CI/dev auth for the private package registry.
 - [ ] Add `src/constants/issue-report.ts` with endpoint, app slug, limits, storage adapter,
       environment detection, and redaction overrides.
+- [ ] Wire Google SSO identity into the reporter config/submit input (`reporter` fields)
+      when the tenant SSO work lands; omit the field when identity is unavailable.
 - [ ] Add `src/lib/screenshot.ts` with native `tmpfile` + resize and web `base64` paths;
       keep screenshot failure non-blocking.
 - [ ] Add `src/lib/report-log-buffer.ts` for console and unhandled-error capture (500 / 256 KB
@@ -266,8 +312,8 @@ declaring any phase done.
 - [ ] Add `src/lib/issue-report.ts` for the full `DatabaseShape` snapshot, diagnostics, and
       the configured reporter instance.
 - [ ] Add `src/app/report.tsx` with all fields, data preview, public-report notice and
-      acknowledgement, screenshot preview/removal, and submission states including retry
-      with the same `reportId`.
+      acknowledgement (including reporter identity and public contact), screenshot
+      preview/removal, and submission states including retry with the same `reportId`.
 - [ ] Add the report button to `src/ui/nav-bar.tsx` and register the `report` route, log
       capture, and reporter initialization in `src/app/_layout.tsx`.
 - [ ] Add client tests and run format/lint/typecheck/build in the tenant repo.
@@ -275,55 +321,67 @@ declaring any phase done.
       capture in Expo Go, preview, and production.
 - [ ] Verify toggle, preview JSON, acknowledgement gating, oversized-report messaging,
       and retry behavior.
+- [ ] Verify SSO identity, version, and environment appear in a created issue and that
+      GitHub comments are the primary follow-up channel.
 - [ ] Verify a library version bump changes only the dependency, not app capture code.
 
 ### Phase 11: Production rollout
 
-- [ ] Confirm the §7 open questions and the recommended defaults before release.
 - [ ] Deploy the production stack after the required approval; verify the endpoint and
       alarms.
+- [ ] Validate the initial alarm thresholds (Lambda errors, DLQ depth) against real
+      traffic after rollout; tune and record the results in this plan.
+- [ ] Review the 5/10/20 per-hour rate limits after observing real usage; adjust if
+      needed.
 - [ ] Ship the tenant client release and monitor errors, DLQ depth, and incremental cost.
 - [ ] Document the triage runbook and where sanitized reports and screenshots are stored.
 
 ### Phase 12: Deferred follow-ups (not in the first release)
 
-- [ ] Onboard additional tenants with config + SSM only; confirm no backend code changes
-      are needed.
-- [ ] Add an S3 lifecycle policy to expire attachments after issue closure or 12 months.
+- [ ] Onboard additional tenants with config + SSM only and the one platform GitHub App
+      installed on their repositories; confirm no backend code changes are needed.
 - [ ] Revisit WAF/API Gateway if per-method throttling or usage plans become necessary.
-- [ ] Switch to public npm when the repository is open-sourced, keeping names and versions
-      unchanged.
-- [ ] Revisit screenshot redaction tooling, reporter IP visibility, and web SVG capture
-      fidelity based on real reports.
+- [ ] Switch from the private registry to public npm when the repository is open-sourced,
+      keeping names and versions unchanged.
+- [ ] Revisit the 30-day retention window and manual screenshot policy if real reports
+      demand it.
 
 ## 6. Cross-repository coordination
 
 - This repository releases `core`/`client`; `iron-altar` consumes a pinned version and does
   not duplicate the contract, redaction, transport, or error mapping.
-- Backend phases 1–9 can be built and verified before tenant integration. Phase 10 depends
-  on a published client version and a deployed preview endpoint.
+- Backend phases 1–9 (including 6.1) can be built and verified before tenant integration.
+  Phase 10 depends on a published client version and a deployed preview endpoint.
+- Reporter identity in Phase 10 depends on tenant-side Google SSO; if it is not ready, ship
+  with `reporter` omitted and add it in a follow-up client release.
 - No production deploy before the GitHub App secret is populated (phase 8).
 - Tenant repo work follows `../iron-altar/AGENTS.md` (Expo/EAS rules included there).
 
-## 7. Open questions to resolve at review
+## 7. Decision log from plan review
 
-1. Automatic-data default (recommendation: on, with preview and toggle). A: Recommendation is fine
-2. Confirm 5/10/20 per-hour rate limits after observing usage. 
-3. Report retention: indefinite vs expiry after closure / 12 months. A: Expire 30 days after closure
-4. Keep optional public contact or switch to GitHub comments. A: I'd like to know who submitted the report, which I think we can get from google sso login (I am updating tenant apps to include sso) but primary communication should be through GitHub comments
-5. Confirm `[iron-altar] <summary>` title format. A: This should include application version as well
-6. One platform GitHub App vs one per tenant (recommendation: one platform app). A: One platform app
-7. Alarm thresholds (Lambda errors vs DLQ depth only). A: I'm not sure, set a reasonable default and include a plan to validate that these are sufficient
-8. Whether preview reports create public issues (design assumes yes). A: Yes, as long as the application version / environment is indicated in the issue
-9. Manual screenshot removal vs crop/redaction tool for v1. A: Manual only, no crop redaction tool needed
-10. Keep viewer IP internal (recommendation) vs include in public report. A: Keep internal
-11. Accept imperfect web SVG/chart captures for v1. A: This is fine
-12. Private registry first vs public npm (recommendation: private first). A: Private first, I only need my apps to use it for now
-13. Client major-version check with opt-out vs `/v1` + server validation only: A: Both
-    (recommendation: both).
+These answers supersede the corresponding recommendations in design §15; where this plan
+and the design document differ, this plan is authoritative.
+
+| #  | Decision                                                                                                                                                                                          |
+| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | Automatic data and diagnostics default **on**, with preview and toggle.                                                                                                                          |
+| 2  | Keep the initial 5/10/20 per-hour limits; validate against real usage in Phase 11.                                                                                                               |
+| 3  | Expire sanitized reports and screenshots **30 days after the linked issue is closed** (Phase 6.1).                                                                                              |
+| 4  | Include tenant Google SSO reporter identity in the report and public issue; GitHub comments are the primary follow-up channel. Keep the optional public contact field.                          |
+| 5  | Title issues `[<app> v<version>] <summary>` using `client.version` (fallback: diagnostics version or `unknown`).                                                                                 |
+| 6  | One platform-owned GitHub App installed on selected tenant repositories.                                                                                                                         |
+| 7  | Start with Lambda error and DLQ-depth alarms, then validate thresholds against real traffic and tune them (Phase 11).                                                                           |
+| 8  | Preview reports do create public issues; version and environment must be visible in each issue.                                                                                                   |
+| 9  | Manual screenshot removal only; no crop/redaction tool in v1.                                                                                                                                     |
+| 10 | Keep viewer IP internal for rate limiting; never include it in the public report.                                                                                                                 |
+| 11 | Accept imperfect web SVG/chart captures for v1.                                                                                                                                                  |
+| 12 | Publish to a private registry first (GitHub Packages by default); public npm only when the repository is open-sourced.                                                                           |
+| 13 | Use both the `/v1` path and a client semver-major check against the deployed API major, with a documented opt-out.                                                                              |
 
 ## 8. Definition of done
 
 - All phase action items above are checked, with format, lint, typecheck, and tests passing.
 - The design's §13 test matrix is covered across packages, Lambdas, CDK, and end-to-end.
+- Reporter identity, versioned issue titles, and 30-day post-closure retention are verified.
+- Alarm thresholds and rate limits have been validated against real traffic (Phase 11).
 - The rollout sequence in design §14 is complete through production with alarms monitored.
