@@ -138,19 +138,19 @@ declaring any phase done.
 - [x] Configure publishing to a private registry (GitHub Packages by default) and document
       the authentication/`.npmrc` setup required by tenant consumers.
 
-### Phase 2: Shared core package (`@issue-reporter/core`)
+### Phase 2: Shared core package (`@issue-reporter/core`) — Completed
 
-- [ ] Add `contracts.ts`: `IssueReportRequest`, response types, and Zod schemas for app,
+- [x] Add `contracts.ts`: `IssueReportRequest`, response types, and Zod schemas for app,
       environment, category, text lengths, optional `reporter` SSO identity, `DatabaseShape`,
       diagnostics, logs, stack traces, client info, and screenshot.
-- [ ] Add `limits.ts`: body/data/screenshot sizes, log and stack-trace counts, rate
+- [x] Add `limits.ts`: body/data/screenshot sizes, log and stack-trace counts, rate
       limits, and text-length constants.
-- [ ] Add `redaction.ts`: default secret patterns and recursive `redactReport` covering
+- [x] Add `redaction.ts`: default secret patterns and recursive `redactReport` covering
       user text, app data, logs, and stack traces.
-- [ ] Add package `index.ts` exports, `package.json` metadata/exports, and Zod dependency.
-- [ ] Add unit tests for schema boundaries, unknown-key stripping, redaction patterns,
+- [x] Add package `index.ts` exports, `package.json` metadata/exports, and Zod dependency.
+- [x] Add unit tests for schema boundaries, unknown-key stripping, redaction patterns,
       `extraRedactionPatterns`, and tenant overrides.
-- [ ] Add contract fixtures shared with the backend validation tests.
+- [x] Add contract fixtures shared with the backend validation tests.
 
 ### Phase 3: Client package (`@issue-reporter/client`)
 
