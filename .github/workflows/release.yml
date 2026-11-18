@@ -18,11 +18,14 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-2
+      RELEASE_ROLE_ARN: ${{ vars.RELEASE_ROLE_ARN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,10 +33,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          registry-url: https://npm.pkg.github.com
-          scope: '@steventclarke'
 
       - run: npm ci
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.RELEASE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Resolve release version
         id: release
@@ -60,11 +66,35 @@ jobs:
 
       - name: Publish packages
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
         run: |
+          DOMAIN=$(aws ssm get-parameter \
+            --name /platform/artifacts/codeartifact/domain \
+            --region "$AWS_REGION" --query Parameter.Value --output text)
+          OWNER=$(aws ssm get-parameter \
+            --name /platform/artifacts/codeartifact/domain-owner \
+            --region "$AWS_REGION" --query Parameter.Value --output text)
+          REGION=$(aws ssm get-parameter \
+            --name /platform/artifacts/codeartifact/region \
+            --region "$AWS_REGION" --query Parameter.Value --output text)
+          REPOSITORY=$(aws ssm get-parameter \
+            --name /platform/artifacts/codeartifact/repository \
+            --region "$AWS_REGION" --query Parameter.Value --output text)
+          SCOPE=$(aws ssm get-parameter \
+            --name /platform/artifacts/codeartifact/npm-scope \
+            --region "$AWS_REGION" --query Parameter.Value --output text)
+
+          ENDPOINT="${DOMAIN}-${OWNER}.d.codeartifact.${REGION}.amazonaws.com/npm/${REPOSITORY}/"
+          TOKEN=$(aws codeartifact get-authorization-token \
+            --domain "$DOMAIN" \
+            --domain-owner "$OWNER" \
+            --region "$REGION" \
+            --query authorizationToken --output text)
+
+          npm config set "//${ENDPOINT}:_authToken" "$TOKEN"
+          npm config set "${SCOPE}:registry" "https://${ENDPOINT}"
           if [ "$DRY_RUN" = "true" ]; then
-            npm publish --workspaces --dry-run
+            npm publish --workspaces --dry-run --registry "https://${ENDPOINT}"
           else
-            npm publish --workspaces
+            npm publish --workspaces --registry "https://${ENDPOINT}"
           fi

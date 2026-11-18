@@ -48,20 +48,19 @@ if (new Set(Object.values(versions)).size !== 1) {
   errors.push('root, core, and client versions must match');
 }
 
-if (corePkg.name !== '@steventclarke/issue-reporter-core') {
-  errors.push('core package name must be @steventclarke/issue-reporter-core');
+if (corePkg.name !== '@stevenclarke/issue-reporter-core') {
+  errors.push('core package name must be @stevenclarke/issue-reporter-core');
 }
-if (clientPkg.name !== '@steventclarke/issue-reporter-client') {
-  errors.push('client package name must be @steventclarke/issue-reporter-client');
+if (clientPkg.name !== '@stevenclarke/issue-reporter-client') {
+  errors.push('client package name must be @stevenclarke/issue-reporter-client');
 }
-if (clientPkg.dependencies?.['@steventclarke/issue-reporter-core'] !== versions.core) {
+if (clientPkg.dependencies?.['@stevenclarke/issue-reporter-core'] !== versions.core) {
   errors.push('client must depend on the exact matching core version');
 }
-if (corePkg.publishConfig?.registry !== 'https://npm.pkg.github.com') {
-  errors.push('core publishConfig registry must be https://npm.pkg.github.com');
-}
-if (clientPkg.publishConfig?.registry !== 'https://npm.pkg.github.com') {
-  errors.push('client publishConfig registry must be https://npm.pkg.github.com');
+if (corePkg.publishConfig?.registry || clientPkg.publishConfig?.registry) {
+  errors.push(
+    'package manifests must not pin a registry; CodeArtifact is configured at publish time',
+  );
 }
 if (expectedMajor && apiMajor !== null && Number(expectedMajor) !== apiMajor) {
   errors.push(`expected version major ${expectedMajor} does not match API_MAJOR ${apiMajor}`);

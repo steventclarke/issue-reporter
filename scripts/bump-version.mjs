@@ -31,7 +31,7 @@ for (const path of manifests) {
   const manifest = JSON.parse(readFileSync(fullPath, 'utf8'));
   manifest.version = version;
   if (path === 'packages/client/package.json') {
-    manifest.dependencies['@steventclarke/issue-reporter-core'] = version;
+    manifest.dependencies['@stevenclarke/issue-reporter-core'] = version;
   }
   writeFileSync(fullPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }

@@ -4,7 +4,7 @@ import {
   normalizeStorageKeyPrefix,
   validateConfig,
   type IssueReporterConfig,
-} from '@steventclarke/issue-reporter-client';
+} from '@stevenclarke/issue-reporter-client';
 import { fixtureApp, fixtureEnvironment } from './fixtures/issue-report';
 
 const storage = {

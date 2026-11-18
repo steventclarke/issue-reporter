@@ -2,7 +2,7 @@ import {
   appSlugSchema,
   environmentSchema,
   type AuthFailureReason,
-} from '@steventclarke/issue-reporter-core';
+} from '@stevenclarke/issue-reporter-core';
 import { IssueReporterError } from './errors';
 import { installationStorageKey, type StorageAdapter } from './install-id';
 

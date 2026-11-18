@@ -18,7 +18,7 @@ flowchart TB
   subgraph Client["Iron Altar client — steventclarke/iron-altar"]
     UI["Report form<br/>src/app/report.tsx"]
     SNAP["Screenshot capture<br/>arbitrary app-data snapshot<br/>logs + stack traces"]
-    LIB["@steventclarke/issue-reporter-client<br/>app-agnostic contract · redaction<br/>transport · typed errors"]
+    LIB["@stevenclarke/issue-reporter-client<br/>app-agnostic contract · redaction<br/>transport · typed errors"]
     UI --> SNAP
     SNAP --> LIB
   end
@@ -71,8 +71,8 @@ flowchart TB
   W -.-> SNS
 ```
 
-`@steventclarke/issue-reporter-client` is published from the `issue-reporter` repository and re-exports
-the shared contract and redaction from `@steventclarke/issue-reporter-core`; see design §6.7 and §8.12.
+`@stevenclarke/issue-reporter-client` is published from the `issue-reporter` repository and re-exports
+the shared contract and redaction from `@stevenclarke/issue-reporter-core`; see design §6.7 and §8.12.
 Core is app-agnostic: it validates generic slugs and arbitrary JSON, while tenant config
 defines the allowed apps, environments, categories, reporter providers, and app-specific
 payload fields. Iron Altar is shown as the first tenant.

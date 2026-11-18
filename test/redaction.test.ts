@@ -4,7 +4,7 @@ import {
   REDACTION_MARKER,
   redactReport,
   redactString,
-} from '@steventclarke/issue-reporter-core';
+} from '@stevenclarke/issue-reporter-core';
 import { secretBearingReportRequest } from './fixtures/issue-report';
 
 const githubToken = `ghp_${'a'.repeat(36)}`;

@@ -1,5 +1,5 @@
 {
-  "name": "@steventclarke/issue-reporter-core",
+  "name": "@stevenclarke/issue-reporter-core",
   "version": "1.0.0",
   "description": "Shared issue report contract, limits, and secret redaction",
   "repository": {
@@ -24,10 +24,6 @@
   "sideEffects": false,
   "dependencies": {
     "zod": "^4.6.7"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"

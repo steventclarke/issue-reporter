@@ -6,7 +6,7 @@ import {
   errorResponseSchema,
   issueReportRequestSchema,
   type IssueReportRequest,
-} from '@steventclarke/issue-reporter-core';
+} from '@stevenclarke/issue-reporter-core';
 import { cloneValidReportRequest } from './fixtures/issue-report';
 
 type RequestMutator = (request: IssueReportRequest) => void;

@@ -7,14 +7,15 @@ Working conventions for this repository.
 This is the **platform-global issue intake backend** for `stevenclarke.dev`. It owns the
 `issues.stevenclarke.dev` CloudFront endpoint, the ingest and worker Lambdas, DynamoDB
 report state, S3 attachments, SQS/DLQ, the GitHub App secret, and the CloudWatch alarms.
-It also publishes the reusable `@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client`
+It also publishes the reusable `@stevenclarke/issue-reporter-core` and `@stevenclarke/issue-reporter-client`
 packages. Tenant UI code (report form, screenshot capture, app-data snapshot, logging) lives
 in tenant repositories such as `steventclarke/iron-altar`; follow that repository's
 `AGENTS.md` for Expo/EAS rules when working on tenant integration.
 
 Shared AWS foundation (Route 53 zone, wildcard certificate, GitHub OIDC, deploy roles,
-monitoring topic) is owned by `stevenclarke-infrastructure`. This repository reads those
-values from SSM and never creates shared DNS, certificate, or role resources.
+CodeArtifact npm repository, monitoring topic) is owned by `stevenclarke-infrastructure`. This
+repository reads those values from SSM and never creates shared DNS, certificate, artifact,
+or role resources. Published packages use the platform `@stevenclarke/*` scope.
 
 ## Branching and PR workflow
 
@@ -122,7 +123,7 @@ npx cdk deploy -c environment=preview --all
 
 ## Code conventions
 
-- TypeScript with npm workspaces for `@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client`.
+- TypeScript with npm workspaces for `@stevenclarke/issue-reporter-core` and `@stevenclarke/issue-reporter-client`.
 - Zod for the shared contract; Octokit for GitHub; AWS CDK v2 (TypeScript) for
   infrastructure.
 - `core` has no platform dependencies beyond Zod. `client` has no React, React Native,
