@@ -12,7 +12,7 @@ import {
   type AcceptedReportResponse,
   type AuthFailureReason,
   type IssueReportRequest,
-} from '@steventclarke/issue-reporter-core';
+} from '@stevenclarke/issue-reporter-core';
 import { estimateBase64Bytes } from './base64';
 import {
   validateConfig,

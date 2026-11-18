@@ -13,7 +13,7 @@ import {
   type IssueReporterErrorCode,
   type IssueReporterErrorPart,
   type ReportSubmission,
-} from '@steventclarke/issue-reporter-client';
+} from '@stevenclarke/issue-reporter-client';
 import {
   cloneValidReportRequest,
   fixtureApp,

@@ -1,4 +1,7 @@
-# Copy to ~/.npmrc (or the tenant repo's .npmrc) and replace the token placeholder.
-# The token needs the read:packages scope for GitHub Packages.
-@steventclarke:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+# Prefer the SSO login command documented in stevenclarke-infrastructure:
+#   aws codeartifact login --tool npm --namespace @stevenclarke ...
+# It writes the scoped registry and a short-lived auth token to ~/.npmrc.
+#
+# For CI, read the registry URL from /platform/artifacts/codeartifact/npm-registry-url
+# and generate a fresh token with `aws codeartifact get-authorization-token`.
+@stevenclarke:registry=${CODEARTIFACT_NPM_REGISTRY_URL}

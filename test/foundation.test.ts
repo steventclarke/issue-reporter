@@ -24,8 +24,8 @@ describe('workspace foundation', () => {
   });
 
   it.each([
-    ['core', '@steventclarke/issue-reporter-core'],
-    ['client', '@steventclarke/issue-reporter-client'],
+    ['core', '@stevenclarke/issue-reporter-core'],
+    ['client', '@stevenclarke/issue-reporter-client'],
   ])('configures %s for dual-format publishing', (directory, name) => {
     const manifest = readManifest(`packages/${directory}/package.json`);
 
@@ -37,7 +37,7 @@ describe('workspace foundation', () => {
       require: expect.stringMatching(/dist\/index\.js$/),
     });
     expect(manifest.files).toContain('dist');
-    expect(manifest.publishConfig?.registry).toBe('https://npm.pkg.github.com');
+    expect(manifest.publishConfig?.registry).toBeUndefined();
   });
 
   it('keeps root, core, and client versions coupled', () => {
@@ -47,23 +47,32 @@ describe('workspace foundation', () => {
 
     expect(rootManifest.version).toBe(core.version);
     expect(rootManifest.version).toBe(client.version);
-    expect(client.dependencies?.['@steventclarke/issue-reporter-core']).toBe(core.version);
+    expect(client.dependencies?.['@stevenclarke/issue-reporter-core']).toBe(core.version);
     expect(rootManifest.scripts?.['version:check']).toBe('node scripts/check-release.mjs');
     expect(rootManifest.scripts?.['release:check']).toContain('npm publish --workspaces --dry-run');
   });
 
-  it('configures npm for the owner-scoped GitHub Packages registry', () => {
-    const npmrc = readFileSync(join(root, '.npmrc'), 'utf8');
-    expect(npmrc).toContain('@steventclarke:registry=https://npm.pkg.github.com');
+  it('documents CodeArtifact login instead of committing registry credentials', () => {
+    const example = readFileSync(join(root, '.npmrc.example'), 'utf8');
+    expect(example).toContain('aws codeartifact login');
+    expect(example).toContain('@stevenclarke:registry=${CODEARTIFACT_NPM_REGISTRY_URL}');
+    expect(example).not.toContain('npm.pkg.github.com');
   });
 
-  it('defines a release workflow with a dry-run path', () => {
+  it('defines a CodeArtifact release workflow with a dry-run path', () => {
     const workflow = readFileSync(join(root, '.github/workflows/release.yml'), 'utf8');
 
     expect(workflow).toContain("tags:\n      - 'v*'");
     expect(workflow).toContain('dry_run');
+    expect(workflow).toContain('id-token: write');
+    expect(workflow).toContain('aws-actions/configure-aws-credentials@v4');
+    expect(workflow).toContain('/platform/artifacts/codeartifact/domain');
+    expect(workflow).toContain('aws codeartifact get-authorization-token');
+    expect(workflow).toContain('npm config set "${SCOPE}:registry" "https://${ENDPOINT}"');
     expect(workflow).toContain('npm publish --workspaces --dry-run');
     expect(workflow).toContain('npm publish --workspaces');
-    expect(workflow).toContain('packages: write');
+    expect(workflow).not.toContain('npm.pkg.github.com');
+    expect(workflow).not.toContain('packages: write');
+    expect(workflow).not.toContain('NODE_AUTH_TOKEN');
   });
 });

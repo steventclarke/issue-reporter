@@ -1,4 +1,4 @@
-import { errorResponseSchema, type AuthFailureReason } from '@steventclarke/issue-reporter-core';
+import { errorResponseSchema, type AuthFailureReason } from '@stevenclarke/issue-reporter-core';
 
 export type IssueReporterErrorCode =
   | 'validation'

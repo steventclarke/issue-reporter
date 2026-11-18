@@ -1,11 +1,11 @@
 # Issue Reporter — Build Plan
 
 Platform-global in-app issue intake for `stevenclarke.dev`, plus the published
-`@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client` packages. Tenant UI work happens in
+`@stevenclarke/issue-reporter-core` and `@stevenclarke/issue-reporter-client` packages. Tenant UI work happens in
 the tenant repositories (first: `steventclarke/iron-altar`); this repository owns the
 backend, the shared contract/redaction code, the client library, and the public endpoint.
 
-- **Status:** Design complete; Phases 0–3 implemented. Open questions resolved below.
+- **Status:** Design complete; Phases 0–4 implemented. Open questions resolved below.
 - **Design background:** [`docs/issue-reporting-design.md`](docs/issue-reporting-design.md)
   and [`docs/issue-reporting-architecture.md`](docs/issue-reporting-architecture.md)
   (derived diagrams). This plan is authoritative where review decisions differ (§7).
@@ -24,11 +24,11 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **GitHub:** platform-owned GitHub App with `Issues: Read and write` and
   `Metadata: Read-only`, installed only on `steventclarke/iron-altar`. All created issues
   are public; the client requires an explicit acknowledgement.
-- **Packages:** `@steventclarke/issue-reporter-core` (Zod contracts, limits, redaction) and
-  `@steventclarke/issue-reporter-client` (install ID, transport, typed errors) are published from this
-  repository and versioned together. Names are owner-scoped because GitHub Packages requires
-  the npm scope to match the repository owner. Neither has React, React Native, Expo, or DOM
-  dependencies; the Lambda bundles `core` at build time and never imports `client`.
+- **Packages:** `@stevenclarke/issue-reporter-core` (Zod contracts, limits, redaction) and
+  `@stevenclarke/issue-reporter-client` (install ID, transport, typed errors) are published from this
+  repository and versioned together. Names use the platform CodeArtifact `@stevenclarke/*` scope.
+  Neither has React, React Native, Expo, or DOM dependencies; the Lambda bundles `core` at build
+  time and never imports `client`.
 - **Data:** full `DatabaseShape` snapshot, recent logs (500 / 256 KB), 10 stack traces,
   diagnostics, and user text. Only token/secret-like values are redacted; screenshots are
   not auto-redacted and can be removed by the reporter. Viewer IP stays internal for rate
@@ -39,8 +39,8 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **Limits:** 6 MB request body, 3.5 MB sanitized data/logs/stack traces, 1.5 MB target /
   3 MB hard max decoded screenshot, 5/10/20 reports per hour for installation/IP/app.
 - **Review decisions:** automatic data defaults on with preview and toggle; one platform
-  GitHub App installed on selected repos; owner-scoped packages on a private registry first
-  (GitHub Packages by default), public npm only on open-sourcing; `/v1` plus a client
+  GitHub App installed on selected repos; `@stevenclarke/*` packages on the platform
+  CodeArtifact repository first, public npm only on open-sourcing; `/v1` plus a client
   semver-major check against `GET /v1/version` with opt-out; viewer IP stays internal.
   Full decision log in §7.
 - **Reporter identity:** tenant SSO (Google) supplies the reporter's identity; include it
@@ -59,7 +59,7 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **Alarms:** start with Lambda error and DLQ-depth alarms, then validate thresholds
   against real traffic and tune them (Phase 11).
 - **App-agnostic core:** no tenant app slugs, environments, categories, providers, database
-  shape, or diagnostic fields are hardcoded in `@steventclarke/issue-reporter-core`; tenants and backend
+  shape, or diagnostic fields are hardcoded in `@stevenclarke/issue-reporter-core`; tenants and backend
   config supply their own values and arbitrary JSON snapshots.
 - **Screenshots:** manual removal only in v1; no crop/redaction tool.
 - **Web capture:** imperfect SVG/chart fidelity accepted for v1.
@@ -150,10 +150,10 @@ declaring any phase done.
 - [x] Add the test runner configuration and unit-test layout.
 - [x] Add PR CI checks for format, lint, typecheck, test, and build.
 - [x] Add `.gitignore`, `README.md`, and `LICENSE` as appropriate for a releasable repo.
-- [x] Configure publishing to a private registry (GitHub Packages by default) and document
-      the authentication/`.npmrc` setup required by tenant consumers.
+- [x] Configure publishing to the platform CodeArtifact repository and document the SSO
+      login setup required by tenant consumers.
 
-### Phase 2: Shared core package (`@steventclarke/issue-reporter-core`) — Completed
+### Phase 2: Shared core package (`@stevenclarke/issue-reporter-core`) — Completed
 
 - [x] Add `contracts.ts`: `IssueReportRequest`, response types, and Zod schemas for app,
       environment, category, text lengths, optional `reporter` SSO identity, `DatabaseShape`,
@@ -167,7 +167,7 @@ declaring any phase done.
       `extraRedactionPatterns`, and tenant overrides.
 - [x] Add contract fixtures shared with the backend validation tests.
 
-### Phase 3: Client package (`@steventclarke/issue-reporter-client`) — Completed
+### Phase 3: Client package (`@stevenclarke/issue-reporter-client`) — Completed
 
 - [x] Add `createIssueReporter(config)` with validation of endpoint, app slug,
       environment, storage adapter, prefix, injected `fetch`, timeout, and extra patterns.
@@ -192,11 +192,11 @@ declaring any phase done.
 
 ### Phase 4: Versioning and publishing — Completed
 
-- [x] Define the coupled versioning scheme for `@steventclarke/issue-reporter-core`,
-      `@steventclarke/issue-reporter-client`, and the API major: root/core/client versions match,
+- [x] Define the coupled versioning scheme for `@stevenclarke/issue-reporter-core`,
+      `@stevenclarke/issue-reporter-client`, and the API major: root/core/client versions match,
       the major equals `API_MAJOR`, and the endpoint stays `/v{major}`.
-- [x] Add a release workflow publishing both packages with matching versions to GitHub Packages,
-      with owner-scoped names required by the registry.
+- [x] Add a release workflow publishing both packages with matching versions to the platform
+      CodeArtifact repository using short-lived OIDC/CodeArtifact tokens.
 - [x] Keep the `/v1` path and add a client semver-major check against `GET /v1/version`, with
       `skipApiVersionCheck: true` as the documented opt-out.
 - [x] Verify a dry-run publish with `npm run release:check` / workflow dispatch and document the
@@ -325,7 +325,7 @@ declaring any phase done.
 
 ### Phase 10: Tenant client integration (`steventclarke/iron-altar` repository)
 
-- [ ] Install `@steventclarke/issue-reporter-client`, `expo-file-system`, and
+- [ ] Install `@stevenclarke/issue-reporter-client`, `expo-file-system`, and
       `react-native-view-shot` with Expo's resolver, and `html2canvas-pro` separately;
       configure tenant CI/dev auth for the private package registry.
 - [ ] Add `src/constants/issue-report.ts` with endpoint, app slug, limits, storage adapter,
@@ -402,7 +402,7 @@ and the design document differ, this plan is authoritative.
 | 9   | Manual screenshot removal only; no crop/redaction tool in v1.                                                                                                          |
 | 10  | Keep viewer IP internal for rate limiting; never include it in the public report.                                                                                      |
 | 11  | Accept imperfect web SVG/chart captures for v1.                                                                                                                        |
-| 12  | Publish to a private registry first (GitHub Packages by default); public npm only when the repository is open-sourced.                                                 |
+| 12  | Publish to the platform CodeArtifact repository first; public npm only when the repository is open-sourced.                                                            |
 | 13  | Use both the `/v1` path and a client semver-major check against the deployed API major, with a documented opt-out.                                                     |
 
 ## 8. Definition of done
