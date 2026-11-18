@@ -168,6 +168,19 @@ describe('response schemas', () => {
     expect(errorResponseSchema.safeParse({ error: 'validation_failed', issues: [] }).success).toBe(
       true,
     );
+    expect(
+      errorResponseSchema.safeParse({ error: 'unauthorized', reason: 'missing_token' }).success,
+    ).toBe(true);
+    expect(
+      errorResponseSchema.safeParse({ error: 'forbidden', reason: 'not_allowed' }).success,
+    ).toBe(true);
+    expect(
+      errorResponseSchema.safeParse({ error: 'auth_unavailable', reason: 'auth_unavailable' })
+        .success,
+    ).toBe(true);
     expect(errorResponseSchema.safeParse({ error: 'unknown_error' }).success).toBe(false);
+    expect(
+      errorResponseSchema.safeParse({ error: 'unauthorized', reason: 'raw_jwt' }).success,
+    ).toBe(false);
   });
 });

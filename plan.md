@@ -5,7 +5,7 @@ Platform-global in-app issue intake for `stevenclarke.dev`, plus the published
 the tenant repositories (first: `steventclarke/iron-altar`); this repository owns the
 backend, the shared contract/redaction code, the client library, and the public endpoint.
 
-- **Status:** Design complete; open questions resolved below. No implementation has started.
+- **Status:** Design complete; Phases 0–3 implemented. Open questions resolved below.
 - **Design background:** [`docs/issue-reporting-design.md`](docs/issue-reporting-design.md)
   and [`docs/issue-reporting-architecture.md`](docs/issue-reporting-architecture.md)
   (derived diagrams). This plan is authoritative where review decisions differ (§7).
@@ -44,6 +44,10 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **Reporter identity:** tenant SSO (Google) supplies the reporter's identity; include it
   in the report and the public issue so the submitter is known. Primary communication
   happens in GitHub comments; the optional `contact` field remains available.
+- **Optional SSO auth:** approved design in
+  [`docs/issue-reporting-auth-sso-jwt.md`](docs/issue-reporting-auth-sso-jwt.md); per-app
+  `auth.mode = 'oidc'` verifies a tenant-issued bearer JWT in ingest and derives `reporter`
+  from claims. Anonymous intake remains available for other apps.
 - **Retention:** sanitized reports and screenshots expire 30 days after the linked GitHub
   issue is closed (§6.1 and §7).
 - **Issue title:** `[<app> v<version>] <summary>`, for example
@@ -89,22 +93,28 @@ issue-reporter/
   design §7.2.
 - `reporter` is optional tenant SSO identity (`provider`, `subject`, `email`, `name`)
   supplied by the tenant at submission time. The backend treats it as unverified metadata
-  and publishes it in the issue; it is not an authentication or authorization control.
+  for anonymous apps. For `auth.mode = 'oidc'` apps, ingest overwrites it from verified JWT
+  claims; it is never trusted as an authorization control from the client.
 - Responses: `202` accepted/already accepted (`reportId`, `status`), `400` validation,
-  `403` forbidden origin, `405` method not allowed, `413` payload too large, `429` rate
-  limited (`retryAfterSeconds`), `500` internal. Honeypot hits return a generic `202`.
+  `401` unauthorized, `403` forbidden/forbidden origin, `405` method not allowed, `413`
+  payload too large, `429` rate limited (`retryAfterSeconds`), `500` internal, `503`
+  auth unavailable. Error bodies may carry a metadata-only `reason`. Honeypot hits return
+  a generic `202`.
 - CORS origins: `https://iron-altar.stevenclarke.dev`,
   `https://iron-altar-preview.stevenclarke.dev`, `http://localhost:8081`,
-  `http://localhost:19006`; methods `POST`, `OPTIONS`; header `content-type`.
+  `http://localhost:19006`; methods `POST`, `OPTIONS`; headers `content-type` and
+  `authorization`.
 - Rate limits use `CloudFront-Viewer-Address` (hashed/raw internally, never published).
 
 ## 3. Architecture summary
 
 ```text
-client -> CloudFront -> Function URL (AWS_IAM + OAC) -> Ingest Lambda
-                                                       |-> DynamoDB (status, idempotency, limits)
-                                                       |-> S3 (report.json, screenshot)
-                                                       `-> SQS -> Worker Lambda -> GitHub App -> issue
+client + SSO token -> CloudFront -> Function URL (AWS_IAM + OAC) -> Ingest Lambda
+                                                                   |-> DynamoDB (status, idempotency, limits)
+
+                                                                   |-> S3 (report.json, screenshot)
+                                                                   `-> SQS -> Worker Lambda -> GitHub App -> issue
+
                           CloudFront /attachments/* -> S3 (OAC, no Lambda)
 ```
 
@@ -155,22 +165,27 @@ declaring any phase done.
       `extraRedactionPatterns`, and tenant overrides.
 - [x] Add contract fixtures shared with the backend validation tests.
 
-### Phase 3: Client package (`@issue-reporter/client`)
+### Phase 3: Client package (`@issue-reporter/client`) — Completed
 
-- [ ] Add `createIssueReporter(config)` with validation of endpoint, app slug,
+- [x] Add `createIssueReporter(config)` with validation of endpoint, app slug,
       environment, storage adapter, prefix, injected `fetch`, timeout, and extra patterns.
-- [ ] Add `submit(input)`: redact, serialize, enforce limits locally, `POST /v1/reports`,
+- [x] Add `submit(input)`: redact, serialize, enforce limits locally, `POST /v1/reports`,
       and map responses to typed results.
-- [ ] Add `createReportId()` and `getInstallationId()` backed by the tenant storage
+- [x] Add `createReportId()` and `getInstallationId()` backed by the tenant storage
       adapter with `crypto.randomUUID()` fallback generation.
-- [ ] Add `IssueReporterError` and response-to-error mapping for every documented status.
-- [ ] Add `estimateBase64Bytes` and re-export shared limits and redaction from `core`.
-- [ ] Add metadata-only `onDiagnostic` events (`request_started`, `response_received`,
-      `rate_limited`); never emit report content.
-- [ ] Add unit tests for config validation, request shape, headers, injected `fetch`,
-      `AbortController` timeout, each error status, ID generation/reuse, adapter failures,
-      redaction, and size limits.
-- [ ] Add a bundle test proving no React, React Native, Expo, AsyncStorage, or DOM imports,
+- [x] Add `IssueReporterError` and response-to-error mapping for every documented status,
+      including `401` unauthorized, `403` forbidden, and `503` auth unavailable with
+      metadata-only `reason` codes.
+- [x] Add optional `auth.getBearerToken()` config that attaches an SSO bearer token header,
+      omits the header when no token is available, and fails locally when the provider throws.
+- [x] Add `estimateBase64Bytes` and re-export shared limits and redaction from `core`.
+- [x] Add metadata-only `onDiagnostic` events (`request_started`, `response_received`,
+      `rate_limited`, `auth_required`, `auth_failed`); never emit report content, tokens, or
+      raw claims.
+- [x] Add unit tests for config validation, request shape, headers, injected `fetch`,
+      `AbortController` timeout, each error status, bearer-token header/null/throw behavior,
+      auth diagnostics, ID generation/reuse, adapter failures, redaction, and size limits.
+- [x] Add a bundle test proving no React, React Native, Expo, AsyncStorage, or DOM imports,
       with Node and ESM builds.
 
 ### Phase 4: Versioning and publishing
@@ -188,6 +203,11 @@ declaring any phase done.
 - [ ] Add the handler skeleton with structured JSON logging (`reportId`, `app`, `status`
       only) and no raw payload logging.
 - [ ] Verify origin allowlist (`403`) and HTTP method (`405`).
+- [ ] For `auth.mode = 'oidc'`, verify the SSO bearer JWT against the configured issuer/JWKS,
+      audience, expiry, token use, and group/domain/subject allowlist before any side effects.
+- [ ] Overwrite `reporter` from verified claims and rate-limit authenticated apps by subject.
+- [ ] Return metadata-only `401`/`403`/`503` auth failures with `reason` codes; never log tokens
+      or raw claims.
 - [ ] Enforce the 6 MB body limit (`413`) and parse JSON safely.
 - [ ] Validate with the shared Zod schemas, strip unknown keys, and return `400` issues.
 - [ ] Handle the `website` honeypot: generic `202`, no writes, `honeypot_triggered` metric.

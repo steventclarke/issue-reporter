@@ -1,7 +1,8 @@
-# Proposal: SSO Bearer JWT Authentication for Issue Intake
+# Design: SSO Bearer JWT Authentication for Issue Intake
 
-**Status:** Proposed, not adopted. This is an optional mode for `POST /v1/reports`; the existing
-anonymous mode remains available for tenants that want maximum feedback volume.
+**Status:** Approved. This is an optional mode for `POST /v1/reports`; the existing anonymous
+mode remains available for tenants that want maximum feedback volume. Phase 3 adds the client
+token provider and contract; Phase 5 adds backend verification and enforcement.
 
 ## Goal
 
@@ -22,6 +23,14 @@ The Function URL is protected by `AWS_IAM` with CloudFront OAC, but that only pr
 came through CloudFront. It does not prove who the end user is. The `Origin` header, honeypot, and
 `installationId` are abuse friction; they are not authentication. Today `reporter` is
 self-asserted, so it must not be used for access control.
+
+## What `getBearerToken()` does
+
+`getBearerToken()` is a callback supplied by the tenant app, not a credential source and not a
+security check. The tenant app has already signed the user in with its SSO provider and holds a
+short-lived Cognito ID token. The callback simply returns the current token (refreshing it first
+when needed) so the reporter can attach it to the request. A forged string is rejected because
+only the IdP can sign a token that passes ingest verification.
 
 ## Architecture
 
@@ -56,9 +65,11 @@ The rendered diagram is committed as
 1. The tenant app signs the user in with authorization code + PKCE. Public browser/mobile clients
    must not have a client secret.
 2. The app reads a short-lived token from secure storage and passes a token provider to the
-   client library: `auth: { getBearerToken: async () => token }`.
+   client library: `auth: { getBearerToken: async () => token }`. The callback is a getter; the
+   app owns the SSO session and the client never mints or validates tokens.
 3. The client adds `Authorization: Bearer <token>` to `POST /v1/reports`. It never puts the token
-   in the request body, diagnostics, or logs.
+   in the request body, diagnostics, or logs. If the provider returns `null`, the header is
+   omitted and the backend rejects the request.
 4. CloudFront forwards the header to the Function URL. `OPTIONS` remains unauthenticated so CORS
    preflight works; the CORS allowlist must include `authorization`.
 5. Ingest parses the body, resolves the per-app config from `app`, then authenticates before
@@ -119,17 +130,25 @@ the main fetch cost.
 
 ## Contract and client changes
 
-- Add `unauthorized` and `forbidden` to `ERROR_CODES` in core. Keep `forbidden_origin` for the
-  existing origin check.
-- Add `auth_unavailable` for IdP/JWKS failures. Return `503` and alarm on it.
+Implemented in Phase 3:
+
+- Add `unauthorized`, `forbidden`, and `auth_unavailable` to `ERROR_CODES` in core. Keep
+  `forbidden_origin` for the existing origin check.
+- Add optional `reason` to error responses, limited to metadata codes such as `missing_token`,
+  `invalid_token`, `expired_token`, `not_allowed`, `token_provider_failed`, and
+  `auth_unavailable`.
 - Extend the response table: `401 { error: 'unauthorized' }`, `403 { error: 'forbidden' }`,
   `503 { error: 'auth_unavailable' }`.
 - Extend `IssueReporterConfig` with `auth?: { getBearerToken(): Promise<string | null> }`. When the
-  provider returns `null`, do not send the header and let the backend return `401`.
+  provider returns `null`, the header is omitted and the backend returns `401`. When it throws,
+  the client fails locally with `unauthorized` / `token_provider_failed` and does not send.
 - Map `401` to client code `unauthorized`, `403` with `forbidden` to `forbidden`, and `503` to
   `auth_unavailable`. Existing `403 forbidden_origin` remains distinct.
-- Add diagnostics events `auth_required` and `auth_failed`, carrying only a reason code such as
-  `missing_token`, `invalid_signature`, or `not_allowed`. Never emit the token or raw claims.
+- Add diagnostics events `auth_required` and `auth_failed`, carrying only a reason code. Never emit
+  the token or raw claims.
+
+Deferred to Phase 5: backend verification, allowlist enforcement, reporter derivation from claims,
+and subject-based rate limiting.
 
 ## Ingest changes
 

@@ -76,7 +76,14 @@ Core is app-agnostic: it validates generic slugs and arbitrary JSON, while tenan
 defines the allowed apps, environments, categories, reporter providers, and app-specific
 payload fields. Iron Altar is shown as the first tenant.
 
-**Public read path.** The issue body links `https://issues.stevenclarke.dev/attachments/...`,
+**Optional SSO bearer JWT path.** For apps with `auth.mode = 'oidc'`, the tenant app supplies a
+short-lived Cognito ID token through `auth.getBearerToken()`, and ingest verifies it before
+redaction or writes. The approved design and rendered
+[architecture diagram](diagrams/issue-reporting-auth-sso-jwt.svg) are in
+[`issue-reporting-auth-sso-jwt.md`](issue-reporting-auth-sso-jwt.md).
+
+**Public read path.**
+The issue body links `https://issues.stevenclarke.dev/attachments/...`,
 which CloudFront serves directly from S3 through OAC without invoking Lambda.
 
 ---
@@ -99,7 +106,12 @@ sequenceDiagram
   C->>CF: POST /v1/reports
   CF->>I: signed origin request
   I->>I: verify origin allowlist
-  I->>I: parse JSON, reject oversize, validate contract + app config
+  I->>I: parse JSON, reject oversize, resolve app config
+  alt app uses auth.mode = oidc
+    I->>I: verify bearer JWT + allowlist, derive reporter from claims
+    Note over C,I: 401/403/503 failures carry metadata-only reason; tokens are never logged
+  end
+  I->>I: validate contract + app config
   alt honeypot field populated
     I-->>C: 202 fake success, nothing stored
   else valid submission
