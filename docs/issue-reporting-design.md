@@ -1123,9 +1123,10 @@ Publishing:
   than committing a registry URL or token.
 - `npm run version:bump -- <version>` updates the coupled versions and lockfile;
   `npm run version:check` verifies them, including `API_MAJOR`. A `vX.Y.Z` tag triggers the
-  `Release` workflow, which assumes `RELEASE_ROLE_ARN` via GitHub OIDC, reads
-  `/platform/artifacts/codeartifact/*` from SSM, generates a short-lived token, and publishes
-  core then client. `workflow_dispatch` with `dry_run: true` rehearses the publish.
+  `Release` workflow in the `production` GitHub environment, which assumes the environment
+  variable `RELEASE_ROLE_ARN` via GitHub OIDC, reads `/platform/artifacts/codeartifact/*` from
+  SSM, generates a short-lived token, and publishes core then client. `workflow_dispatch`
+  with `dry_run: true` rehearses the publish.
 - The client checks `GET /v1/version` once per instance for `{ apiMajor, apiVersion }` and blocks
   submissions on a major mismatch unless `skipApiVersionCheck: true` is set. The check is
   opportunistic: a missing or unreadable endpoint does not block a report.

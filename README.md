@@ -82,8 +82,9 @@ client-to-core dependency, and the lockfile together. The major must equal `API_
 `npm run version:check` verifies those invariants in CI. After a CodeArtifact login,
 `npm run release:check` additionally builds and runs `npm publish --workspaces --dry-run`.
 
-The `Release` workflow assumes the OIDC role in the repository variable `RELEASE_ROLE_ARN`.
-That role must be trusted for `steventclarke/issue-reporter` and have CodeArtifact publish
+The `Release` workflow runs in the `production` environment and assumes the OIDC role in the
+environment variable `RELEASE_ROLE_ARN`. That role must be trusted for
+`steventclarke/issue-reporter` and have CodeArtifact publish
 access for `@stevenclarke/*`. The workflow reads the domain, owner, region, repository, and
 scope from `/platform/artifacts/codeartifact/*` SSM parameters and generates a short-lived
 token for each run.

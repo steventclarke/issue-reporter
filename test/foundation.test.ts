@@ -65,6 +65,7 @@ describe('workspace foundation', () => {
     expect(workflow).toContain("tags:\n      - 'v*'");
     expect(workflow).toContain('dry_run');
     expect(workflow).toContain('id-token: write');
+    expect(workflow).toContain('environment: production');
     expect(workflow).toContain('aws-actions/configure-aws-credentials@v4');
     expect(workflow).toContain('/platform/artifacts/codeartifact/domain');
     expect(workflow).toContain('aws codeartifact get-authorization-token');
