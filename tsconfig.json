@@ -13,8 +13,8 @@
     "noEmit": true,
     "isolatedModules": true,
     "paths": {
-      "@issue-reporter/core": ["./packages/core/src/index.ts"],
-      "@issue-reporter/client": ["./packages/client/src/index.ts"]
+      "@steventclarke/issue-reporter-core": ["./packages/core/src/index.ts"],
+      "@steventclarke/issue-reporter-client": ["./packages/client/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "test/**/*.ts"]

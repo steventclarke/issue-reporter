@@ -13,7 +13,7 @@ import {
   type IssueReporterErrorCode,
   type IssueReporterErrorPart,
   type ReportSubmission,
-} from '@issue-reporter/client';
+} from '@steventclarke/issue-reporter-client';
 import {
   cloneValidReportRequest,
   fixtureApp,
@@ -39,12 +39,21 @@ const makeStorage = (initial?: string, key = 'issue-reporter/installation-id') =
 const mockFetch = (status: number, body: unknown): MockFetch =>
   jest.fn(async () => ({ status, json: async () => body })) as unknown as MockFetch;
 
+const versionFetch = (apiMajor: number, apiVersion = `v${apiMajor}`): MockFetch =>
+  jest.fn(async (_url: string, init: FetchInit) => {
+    if (init.method === 'GET') {
+      return { status: 200, json: async () => ({ apiMajor, apiVersion }) };
+    }
+    return { status: 202, json: async () => ({ reportId: fixtureReportId, status: 'queued' }) };
+  }) as unknown as MockFetch;
+
 const makeConfig = (overrides: Partial<IssueReporterConfig> = {}): IssueReporterConfig => ({
   endpoint: 'https://issues.example.test',
   app: fixtureApp,
   environment: fixtureEnvironment,
   storage: makeStorage(),
   fetch: mockFetch(202, { reportId: fixtureReportId, status: 'queued' }),
+  skipApiVersionCheck: true,
   ...overrides,
 });
 
@@ -85,7 +94,7 @@ describe('createIssueReporter', () => {
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(init.signal).toBeDefined();
 
-    const body = JSON.parse(init.body);
+    const body = JSON.parse(init.body ?? '');
     expect(body.app).toBe(fixtureApp);
     expect(body.environment).toBe(fixtureEnvironment);
     expect(body.reportId).toBe(fixtureReportId);
@@ -93,6 +102,65 @@ describe('createIssueReporter', () => {
     expect(body.summary).toContain(REDACTION_MARKER);
     expect(body.summary).not.toContain('ghp_');
     expect(init.body).not.toMatch(/authorization|cookie|credential/i);
+  });
+
+  it('checks the deployed API version once before posting', async () => {
+    const fetch = versionFetch(1);
+    const config = makeConfig({ fetch, skipApiVersionCheck: false });
+
+    const result = await createIssueReporter(config).submit(submission());
+    await createIssueReporter(config).submit(submission());
+
+    expect(result.ok).toBe(true);
+    const calls = fetch.mock.calls;
+    expect(calls[0]![1].method).toBe('GET');
+    expect(calls[0]![0]).toBe('https://issues.example.test/v1/version');
+    expect(calls.filter(([, init]) => init.method === 'POST')).toHaveLength(2);
+  });
+
+  it('rejects an API major mismatch before posting a report', async () => {
+    const events: IssueReporterDiagnostic[] = [];
+    const fetch = versionFetch(2);
+    const config = makeConfig({
+      fetch,
+      skipApiVersionCheck: false,
+      onDiagnostic: (event) => events.push(event),
+    });
+
+    const reporter = createIssueReporter(config);
+
+    const first = await reporter.submit(submission());
+    const second = await reporter.submit(submission());
+
+    expect(first).toMatchObject({
+      ok: false,
+      error: { code: 'api_version_mismatch', apiMajor: 2, expectedApiMajor: 1 },
+    });
+    expect(second).toMatchObject({
+      ok: false,
+      error: { code: 'api_version_mismatch' },
+    });
+    expect(fetch.mock.calls).toHaveLength(1);
+    expect(events).toEqual([
+      {
+        event: 'api_version_mismatch',
+        apiMajor: 2,
+        expectedApiMajor: 1,
+      },
+    ]);
+  });
+
+  it('continues when the API version endpoint is unavailable', async () => {
+    const fetch = jest.fn(async (_url: string, init: FetchInit) => {
+      if (init.method === 'GET') return { status: 404, json: async () => ({}) };
+      return { status: 202, json: async () => ({ reportId: fixtureReportId, status: 'queued' }) };
+    }) as unknown as MockFetch;
+    const config = makeConfig({ fetch, skipApiVersionCheck: false });
+
+    const result = await createIssueReporter(config).submit(submission());
+
+    expect(result.ok).toBe(true);
+    expect(fetch.mock.calls.map(([, init]) => init.method)).toEqual(['GET', 'POST']);
   });
 
   it('adds the SSO bearer token as a header without putting it in the report', async () => {
@@ -185,7 +253,7 @@ describe('createIssueReporter', () => {
 
     expect(result.ok).toBe(true);
     const [, init] = (config.fetch as MockFetch).mock.calls[0]!;
-    expect(JSON.parse(init.body).reportId).toMatch(UUID_PATTERN);
+    expect(JSON.parse(init.body ?? '').reportId).toMatch(UUID_PATTERN);
   });
 
   it('applies tenant redaction patterns before sending', async () => {

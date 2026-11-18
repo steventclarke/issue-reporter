@@ -128,6 +128,13 @@ export const acceptedReportResponseSchema = z
     status: acceptedStatusSchema,
   })
   .strip();
+export const apiVersionResponseSchema = z
+  .object({
+    apiMajor: z.number().int().positive(),
+    apiVersion: z.string().regex(/^v[1-9]\d*$/),
+  })
+  .strip();
+
 export const errorResponseSchema = z
   .object({
     error: z.enum(ERROR_CODES),
@@ -153,4 +160,5 @@ export type IssueReportRequest = z.infer<typeof issueReportRequestSchema>;
 export type ReportStatus = z.infer<typeof reportStatusSchema>;
 export type AcceptedReportResponse = z.infer<typeof acceptedReportResponseSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+export type ApiVersionResponse = z.infer<typeof apiVersionResponseSchema>;
 export type AuthFailureReason = z.infer<typeof authFailureReasonSchema>;

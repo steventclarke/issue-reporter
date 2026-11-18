@@ -1,4 +1,8 @@
-import { appSlugSchema, environmentSchema, type AuthFailureReason } from '@issue-reporter/core';
+import {
+  appSlugSchema,
+  environmentSchema,
+  type AuthFailureReason,
+} from '@steventclarke/issue-reporter-core';
 import { IssueReporterError } from './errors';
 import { installationStorageKey, type StorageAdapter } from './install-id';
 
@@ -8,9 +12,9 @@ export type FetchResponse = {
 };
 
 export type FetchInit = {
-  method: 'POST';
+  method: 'GET' | 'POST';
   headers: Record<string, string>;
-  body: string;
+  body?: string;
   signal: AbortSignal;
 };
 
@@ -23,7 +27,12 @@ export type IssueReporterAuthConfig = {
 };
 
 export type IssueReporterDiagnosticEvent =
-  'request_started' | 'response_received' | 'rate_limited' | 'auth_required' | 'auth_failed';
+  | 'request_started'
+  | 'response_received'
+  | 'rate_limited'
+  | 'auth_required'
+  | 'auth_failed'
+  | 'api_version_mismatch';
 
 export type IssueReporterDiagnostic = {
   event: IssueReporterDiagnosticEvent;
@@ -31,6 +40,8 @@ export type IssueReporterDiagnostic = {
   status?: number;
   retryAfterSeconds?: number;
   reason?: AuthFailureReason;
+  apiMajor?: number;
+  expectedApiMajor?: number;
 };
 
 export type IssueReporterConfig = {
@@ -41,6 +52,7 @@ export type IssueReporterConfig = {
   storageKeyPrefix?: string;
   fetch?: FetchLike;
   timeoutMs?: number;
+  skipApiVersionCheck?: boolean;
   auth?: IssueReporterAuthConfig;
   extraRedactionPatterns?: RegExp[];
   onDiagnostic?: (event: IssueReporterDiagnostic) => void;
@@ -97,6 +109,10 @@ export const validateConfig = (config: IssueReporterConfig): ResolvedConfig => {
   const timeoutMs = config.timeoutMs ?? 30_000;
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
     return fail('timeoutMs must be a positive integer');
+  }
+
+  if (config.skipApiVersionCheck !== undefined && typeof config.skipApiVersionCheck !== 'boolean') {
+    return fail('skipApiVersionCheck must be a boolean');
   }
 
   if (config.auth !== undefined) {

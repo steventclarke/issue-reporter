@@ -18,7 +18,7 @@ flowchart TB
   subgraph Client["Iron Altar client — steventclarke/iron-altar"]
     UI["Report form<br/>src/app/report.tsx"]
     SNAP["Screenshot capture<br/>arbitrary app-data snapshot<br/>logs + stack traces"]
-    LIB["@issue-reporter/client<br/>app-agnostic contract · redaction<br/>transport · typed errors"]
+    LIB["@steventclarke/issue-reporter-client<br/>app-agnostic contract · redaction<br/>transport · typed errors"]
     UI --> SNAP
     SNAP --> LIB
   end
@@ -50,6 +50,7 @@ flowchart TB
 
   GH["GitHub<br/>steventclarke/iron-altar<br/>public issue"]
 
+  LIB -->|"GET /v1/version<br/>one-time major check"| CF
   LIB -->|"POST /v1/reports<br/>HTTPS JSON ≤ 6 MB"| CF
   CF -->|"default behavior<br/>ALL_VIEWER_EXCEPT_HOST_HEADER"| FURL
   CF -->|"/attachments/*<br/>S3 origin with OAC"| S3
@@ -70,8 +71,8 @@ flowchart TB
   W -.-> SNS
 ```
 
-`@issue-reporter/client` is published from the `issue-reporter` repository and re-exports
-the shared contract and redaction from `@issue-reporter/core`; see design §6.7 and §8.12.
+`@steventclarke/issue-reporter-client` is published from the `issue-reporter` repository and re-exports
+the shared contract and redaction from `@steventclarke/issue-reporter-core`; see design §6.7 and §8.12.
 Core is app-agnostic: it validates generic slugs and arbitrary JSON, while tenant config
 defines the allowed apps, environments, categories, reporter providers, and app-specific
 payload fields. Iron Altar is shown as the first tenant.
@@ -103,6 +104,12 @@ sequenceDiagram
   participant S as S3
   participant Q as SQS
 
+  C->>CF: GET /v1/version
+  CF->>I: signed origin request
+  I-->>C: apiMajor, apiVersion
+  alt API major mismatch without opt-out
+    C-->>C: api_version_mismatch, stop
+  end
   C->>CF: POST /v1/reports
   CF->>I: signed origin request
   I->>I: verify origin allowlist

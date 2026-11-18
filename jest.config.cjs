@@ -7,8 +7,8 @@ module.exports = {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
   moduleNameMapper: {
-    '^@issue-reporter/core$': '<rootDir>/packages/core/src/index.ts',
-    '^@issue-reporter/client$': '<rootDir>/packages/client/src/index.ts',
+    '^@steventclarke/issue-reporter-core$': '<rootDir>/packages/core/src/index.ts',
+    '^@steventclarke/issue-reporter-client$': '<rootDir>/packages/client/src/index.ts',
   },
   collectCoverageFrom: ['packages/*/src/**/*.ts'],
 };

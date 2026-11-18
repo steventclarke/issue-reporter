@@ -4,7 +4,7 @@ import {
   normalizeStorageKeyPrefix,
   validateConfig,
   type IssueReporterConfig,
-} from '@issue-reporter/client';
+} from '@steventclarke/issue-reporter-client';
 import { fixtureApp, fixtureEnvironment } from './fixtures/issue-report';
 
 const storage = {
@@ -29,6 +29,7 @@ describe('validateConfig', () => {
     expect(resolved.installationKey).toBe('issue-reporter/installation-id');
     expect(resolved.extraRedactionPatterns).toEqual([]);
     expect(resolved.auth).toBeUndefined();
+    expect(resolved.skipApiVersionCheck).toBeUndefined();
   });
 
   it('uses a configured storage prefix', () => {
@@ -53,6 +54,10 @@ describe('validateConfig', () => {
     ['missing storage', (config) => void (config.storage = {} as IssueReporterConfig['storage'])],
     ['zero timeout', (config) => void (config.timeoutMs = 0)],
     [
+      'invalid API version check opt-out',
+      (config) => void (config.skipApiVersionCheck = 'yes' as unknown as boolean),
+    ],
+    [
       'invalid redaction patterns',
       (config) => void (config.extraRedactionPatterns = [1 as unknown as RegExp]),
     ],
@@ -71,7 +76,7 @@ describe('validateConfig', () => {
 
     expect(() => validateConfig(config)).toThrow(IssueReporterError);
     expect(() => validateConfig(config)).toThrow(
-      /endpoint|app|environment|storage|timeoutMs|auth|Redaction|diagnostic/i,
+      /endpoint|app|environment|storage|timeoutMs|version|auth|Redaction|diagnostic/i,
     );
   });
 });

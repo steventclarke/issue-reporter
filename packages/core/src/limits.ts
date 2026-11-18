@@ -24,4 +24,5 @@ export const RATE_LIMITS = {
 export const GITHUB_BODY_MAX_CHARS = 65_536;
 export const RETENTION_DAYS_AFTER_CLOSE = 30;
 
-export const API_VERSION = 'v1';
+export const API_MAJOR = 1;
+export const API_VERSION = `v${API_MAJOR}`;

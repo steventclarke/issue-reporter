@@ -1,11 +1,12 @@
 import {
   acceptedReportResponseSchema,
+  apiVersionResponseSchema,
   appDataSchema,
   diagnosticsSchema,
   errorResponseSchema,
   issueReportRequestSchema,
   type IssueReportRequest,
-} from '@issue-reporter/core';
+} from '@steventclarke/issue-reporter-core';
 import { cloneValidReportRequest } from './fixtures/issue-report';
 
 type RequestMutator = (request: IssueReportRequest) => void;
@@ -143,6 +144,18 @@ describe('issueReportRequestSchema', () => {
 });
 
 describe('response schemas', () => {
+  it('accepts only well-formed API version responses', () => {
+    expect(apiVersionResponseSchema.safeParse({ apiMajor: 1, apiVersion: 'v1' }).success).toBe(
+      true,
+    );
+    expect(apiVersionResponseSchema.safeParse({ apiMajor: 0, apiVersion: 'v1' }).success).toBe(
+      false,
+    );
+    expect(apiVersionResponseSchema.safeParse({ apiMajor: 1, apiVersion: 'one' }).success).toBe(
+      false,
+    );
+  });
+
   it.each(['receiving', 'queued', 'created'] as const)('accepts %s status', (status) => {
     expect(
       acceptedReportResponseSchema.safeParse({

@@ -1,7 +1,7 @@
 # Issue Reporter — Build Plan
 
 Platform-global in-app issue intake for `stevenclarke.dev`, plus the published
-`@issue-reporter/core` and `@issue-reporter/client` packages. Tenant UI work happens in
+`@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client` packages. Tenant UI work happens in
 the tenant repositories (first: `steventclarke/iron-altar`); this repository owns the
 backend, the shared contract/redaction code, the client library, and the public endpoint.
 
@@ -24,9 +24,10 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **GitHub:** platform-owned GitHub App with `Issues: Read and write` and
   `Metadata: Read-only`, installed only on `steventclarke/iron-altar`. All created issues
   are public; the client requires an explicit acknowledgement.
-- **Packages:** `@issue-reporter/core` (Zod contracts, limits, redaction) and
-  `@issue-reporter/client` (install ID, transport, typed errors) are published from this
-  repository and versioned together. Neither has React, React Native, Expo, or DOM
+- **Packages:** `@steventclarke/issue-reporter-core` (Zod contracts, limits, redaction) and
+  `@steventclarke/issue-reporter-client` (install ID, transport, typed errors) are published from this
+  repository and versioned together. Names are owner-scoped because GitHub Packages requires
+  the npm scope to match the repository owner. Neither has React, React Native, Expo, or DOM
   dependencies; the Lambda bundles `core` at build time and never imports `client`.
 - **Data:** full `DatabaseShape` snapshot, recent logs (500 / 256 KB), 10 stack traces,
   diagnostics, and user text. Only token/secret-like values are redacted; screenshots are
@@ -38,9 +39,10 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **Limits:** 6 MB request body, 3.5 MB sanitized data/logs/stack traces, 1.5 MB target /
   3 MB hard max decoded screenshot, 5/10/20 reports per hour for installation/IP/app.
 - **Review decisions:** automatic data defaults on with preview and toggle; one platform
-  GitHub App installed on selected repos; private registry first (GitHub Packages by
-  default), public npm only on open-sourcing; `/v1` plus a client semver-major check with
-  opt-out; viewer IP stays internal. Full decision log in §7.
+  GitHub App installed on selected repos; owner-scoped packages on a private registry first
+  (GitHub Packages by default), public npm only on open-sourcing; `/v1` plus a client
+  semver-major check against `GET /v1/version` with opt-out; viewer IP stays internal.
+  Full decision log in §7.
 - **Reporter identity:** tenant SSO (Google) supplies the reporter's identity; include it
   in the report and the public issue so the submitter is known. Primary communication
   happens in GitHub comments; the optional `contact` field remains available.
@@ -57,7 +59,7 @@ backend, the shared contract/redaction code, the client library, and the public 
 - **Alarms:** start with Lambda error and DLQ-depth alarms, then validate thresholds
   against real traffic and tune them (Phase 11).
 - **App-agnostic core:** no tenant app slugs, environments, categories, providers, database
-  shape, or diagnostic fields are hardcoded in `@issue-reporter/core`; tenants and backend
+  shape, or diagnostic fields are hardcoded in `@steventclarke/issue-reporter-core`; tenants and backend
   config supply their own values and arbitrary JSON snapshots.
 - **Screenshots:** manual removal only in v1; no crop/redaction tool.
 - **Web capture:** imperfect SVG/chart fidelity accepted for v1.
@@ -151,7 +153,7 @@ declaring any phase done.
 - [x] Configure publishing to a private registry (GitHub Packages by default) and document
       the authentication/`.npmrc` setup required by tenant consumers.
 
-### Phase 2: Shared core package (`@issue-reporter/core`) — Completed
+### Phase 2: Shared core package (`@steventclarke/issue-reporter-core`) — Completed
 
 - [x] Add `contracts.ts`: `IssueReportRequest`, response types, and Zod schemas for app,
       environment, category, text lengths, optional `reporter` SSO identity, `DatabaseShape`,
@@ -165,7 +167,7 @@ declaring any phase done.
       `extraRedactionPatterns`, and tenant overrides.
 - [x] Add contract fixtures shared with the backend validation tests.
 
-### Phase 3: Client package (`@issue-reporter/client`) — Completed
+### Phase 3: Client package (`@steventclarke/issue-reporter-client`) — Completed
 
 - [x] Add `createIssueReporter(config)` with validation of endpoint, app slug,
       environment, storage adapter, prefix, injected `fetch`, timeout, and extra patterns.
@@ -188,15 +190,17 @@ declaring any phase done.
 - [x] Add a bundle test proving no React, React Native, Expo, AsyncStorage, or DOM imports,
       with Node and ESM builds.
 
-### Phase 4: Versioning and publishing
+### Phase 4: Versioning and publishing — Completed
 
-- [ ] Define the coupled versioning scheme for `core`, `client`, and the API major.
-- [ ] Add a release workflow publishing `@issue-reporter/core` and
-      `@issue-reporter/client` with matching versions to the private registry (GitHub
-      Packages by default).
-- [ ] Keep the `/v1` path and add a client semver-major check against the deployed API
-      major, with a documented opt-out.
-- [ ] Verify a dry-run publish and document the tenant upgrade path.
+- [x] Define the coupled versioning scheme for `@steventclarke/issue-reporter-core`,
+      `@steventclarke/issue-reporter-client`, and the API major: root/core/client versions match,
+      the major equals `API_MAJOR`, and the endpoint stays `/v{major}`.
+- [x] Add a release workflow publishing both packages with matching versions to GitHub Packages,
+      with owner-scoped names required by the registry.
+- [x] Keep the `/v1` path and add a client semver-major check against `GET /v1/version`, with
+      `skipApiVersionCheck: true` as the documented opt-out.
+- [x] Verify a dry-run publish with `npm run release:check` / workflow dispatch and document the
+      tenant upgrade path in the README and design docs.
 
 ### Phase 5: Ingest Lambda
 
@@ -321,7 +325,7 @@ declaring any phase done.
 
 ### Phase 10: Tenant client integration (`steventclarke/iron-altar` repository)
 
-- [ ] Install `@issue-reporter/client`, `expo-file-system`, and
+- [ ] Install `@steventclarke/issue-reporter-client`, `expo-file-system`, and
       `react-native-view-shot` with Expo's resolver, and `html2canvas-pro` separately;
       configure tenant CI/dev auth for the private package registry.
 - [ ] Add `src/constants/issue-report.ts` with endpoint, app slug, limits, storage adapter,

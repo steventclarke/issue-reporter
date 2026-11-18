@@ -15,7 +15,7 @@ client and backend are designed so the same backend can serve other tenant appli
 later without creating a new intake service per app. The backend lives in its own
 repository so it can be reused, and potentially open-sourced, independently of Iron Altar.
 
-`@issue-reporter/core` is app-agnostic: it validates generic slugs and arbitrary JSON, while
+`@steventclarke/issue-reporter-core` is app-agnostic: it validates generic slugs and arbitrary JSON, while
 tenants and backend config supply the allowed values and the tenant-specific data shapes.
 Iron Altar is the first tenant and is used as an example throughout this document.
 
@@ -30,7 +30,7 @@ captures the current screen, opens a report form, and submits the report to:
 POST https://issues.stevenclarke.dev/v1/reports
 ```
 
-The app submits through `@issue-reporter/client`, a published library owned by the
+The app submits through `@steventclarke/issue-reporter-client`, a published library owned by the
 `issue-reporter` repository. The request is validated and rate-limited by an ingest
 Lambda, the screenshot is stored in S3, and a message is queued. A worker Lambda creates a
 GitHub issue in the public `steventclarke/iron-altar` repository using a GitHub App
@@ -165,11 +165,11 @@ When the data-and-diagnostics toggle is on, the client includes the full tenant 
 snapshot, recent logs, recent stack traces, and runtime diagnostics. Only token- and
 secret-like values are redacted; no other app data is intentionally excluded.
 
-These types are published by `@issue-reporter/core` and are deliberately app-agnostic.
+These types are published by `@steventclarke/issue-reporter-core` and are deliberately app-agnostic.
 Tenants build the payload from their own schemas; core only validates the shared envelope.
 
 ```ts
-import type { JsonValue } from '@issue-reporter/core';
+import type { JsonValue } from '@steventclarke/issue-reporter-core';
 
 /** Any JSON-serializable tenant document. Iron Altar supplies its DatabaseShape. */
 type AppDataSnapshot = JsonValue;
@@ -322,8 +322,8 @@ authentication.
 The client is split between a reusable package owned by `issue-reporter` and app-specific
 code owned by Iron Altar:
 
-- **`issue-reporter` publishes two packages:** `@issue-reporter/core` (request types, Zod
-  schemas, shared limits, redaction) and `@issue-reporter/client` (installation ID
+- **`issue-reporter` publishes two packages:** `@steventclarke/issue-reporter-core` (request types, Zod
+  schemas, shared limits, redaction) and `@steventclarke/issue-reporter-client` (installation ID
   handling, transport, retry/idempotency semantics, typed errors). Neither package has a
   React, React Native, Expo, or storage dependency.
 - **Iron Altar owns** the report form, screenshot capture, app-data snapshot, diagnostics,
@@ -334,23 +334,23 @@ or the report contract.
 
 ### 6.1 New and changed files
 
-| File                            | Change                                                                                        |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `src/app/report.tsx`            | New report form and submission flow                                                           |
-| `src/app/_layout.tsx`           | Register the `report` screen; install log/error capture; initialize the reporter client       |
-| `src/ui/nav-bar.tsx`            | Add report button and screenshot capture trigger                                              |
-| `src/lib/issue-report.ts`       | App data snapshot, diagnostics, log/stack collection; exports the configured reporter         |
-| `src/lib/report-log-buffer.ts`  | Console and unhandled-error ring buffer                                                       |
-| `src/lib/screenshot.ts`         | Screen capture helper                                                                         |
-| `src/constants/issue-report.ts` | API URL, app slug, limits, redaction pattern overrides, storage adapter                       |
-| `package.json`                  | Add `@issue-reporter/client`, `expo-file-system`, `react-native-view-shot`, `html2canvas-pro` |
+| File                            | Change                                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `src/app/report.tsx`            | New report form and submission flow                                                                         |
+| `src/app/_layout.tsx`           | Register the `report` screen; install log/error capture; initialize the reporter client                     |
+| `src/ui/nav-bar.tsx`            | Add report button and screenshot capture trigger                                                            |
+| `src/lib/issue-report.ts`       | App data snapshot, diagnostics, log/stack collection; exports the configured reporter                       |
+| `src/lib/report-log-buffer.ts`  | Console and unhandled-error ring buffer                                                                     |
+| `src/lib/screenshot.ts`         | Screen capture helper                                                                                       |
+| `src/constants/issue-report.ts` | API URL, app slug, limits, redaction pattern overrides, storage adapter                                     |
+| `package.json`                  | Add `@steventclarke/issue-reporter-client`, `expo-file-system`, `react-native-view-shot`, `html2canvas-pro` |
 
 ### 6.2 Dependencies
 
 Install the client library:
 
 ```bash
-npm install @issue-reporter/client
+npm install @steventclarke/issue-reporter-client
 ```
 
 Install the Expo-managed packages with Expo’s version resolver:
@@ -367,7 +367,7 @@ npm install html2canvas-pro
 
 Dependency roles:
 
-- `@issue-reporter/client` owns the report contract, redaction, installation ID handling,
+- `@steventclarke/issue-reporter-client` owns the report contract, redaction, installation ID handling,
   request transport, and error mapping. It is framework-agnostic and runs in React Native,
   browsers, and Node.
 - `react-native-view-shot` supports Android, iOS, web, and Expo Go.
@@ -474,7 +474,7 @@ survives re-renders:
 const reportId = useRef(createReportId());
 ```
 
-### 6.7 Client library (`@issue-reporter/client`)
+### 6.7 Client library (`@steventclarke/issue-reporter-client`)
 
 Published from `issue-reporter` and imported by the tenant app. The package is
 framework-agnostic: no React, React Native, Expo, AsyncStorage, or DOM imports, and no
@@ -485,11 +485,12 @@ global `fetch` assumption. It exports:
   maps responses to typed results.
 - `createReportId()` and `getInstallationId()`.
 - `redactReport(input)` and the redaction pattern presets (re-exported from
-  `@issue-reporter/core`).
+  `@steventclarke/issue-reporter-core`).
 - `estimateBase64Bytes(value)` and the shared limit constants.
 - `IssueReporterError` with `code`: `validation`, `unauthorized`, `forbidden`,
-  `forbidden_origin`, `payload_too_large`, `rate_limited`, `auth_unavailable`, `network`,
-  `server`. Optional `reason` carries a metadata-only auth failure code.
+  `forbidden_origin`, `payload_too_large`, `rate_limited`, `auth_unavailable`,
+  `api_version_mismatch`, `network`, `server`. Optional `reason` carries a metadata-only auth
+  failure code.
 
 Configuration:
 
@@ -505,6 +506,7 @@ type IssueReporterConfig = {
   storageKeyPrefix?: string;
   fetch?: typeof fetch;
   timeoutMs?: number;
+  skipApiVersionCheck?: boolean;
   auth?: { getBearerToken(): Promise<string | null> };
   extraRedactionPatterns?: RegExp[];
   onDiagnostic?: (event: IssueReporterDiagnostic) => void;
@@ -514,7 +516,8 @@ type IssueReporterConfig = {
 `submit()` resolves to `{ ok: true, reportId, status }` or
 `{ ok: false, reportId, error: IssueReporterError }`; it does not throw for report failures.
 `IssueReporterDiagnostic` contains only `event`, `reportId`, `status`,
-`retryAfterSeconds`, and an optional metadata-only `reason`.
+`retryAfterSeconds`, and optional metadata-only `reason`, `apiMajor`, and
+`expectedApiMajor` values.
 
 Behavioral guarantees:
 
@@ -527,8 +530,12 @@ Behavioral guarantees:
 - Applies `timeoutMs` through `AbortController`; a timeout surfaces as `network`.
   The default is 30 seconds and must be a positive integer.
 - Reports only metadata through `onDiagnostic` (for example, `request_started`,
-  `response_received`, `rate_limited`, `auth_required`, `auth_failed`) — never report content,
-  tokens, or raw claims.
+  `response_received`, `rate_limited`, `auth_required`, `auth_failed`,
+  `api_version_mismatch`) — never report content, tokens, or raw claims.
+- Checks `GET /v1/version` once per reporter instance by default and fails with
+  `api_version_mismatch` before sending a report when the API major differs. Set
+  `skipApiVersionCheck: true` to opt out; a missing or unreadable version endpoint does not
+  block submission.
 - When `auth.getBearerToken()` is configured, the client attaches the returned token as
   `Authorization: Bearer <token>`; a `null` token omits the header, and a thrown provider fails
   locally with `unauthorized` / `token_provider_failed`. The callback is a getter for a token
@@ -574,8 +581,8 @@ const result = await reporter.submit({
 ### 6.9 Secret redaction
 
 Redaction lives in `issue-reporter` and is shared by the client and backend:
-`redactReport` is exported by `@issue-reporter/client` and re-used by the ingest Lambda
-from the same `@issue-reporter/core` source. A single implementation prevents the client
+`redactReport` is exported by `@steventclarke/issue-reporter-client` and re-used by the ingest Lambda
+from the same `@steventclarke/issue-reporter-core` source. A single implementation prevents the client
 and server pattern lists from drifting.
 
 `redactReport` recursively walks report strings and replaces secret-like values with
@@ -592,7 +599,7 @@ and server pattern lists from drifting.
 The app does not store GitHub or AWS credentials, so normal app logs are secret-free. This
 redaction is defense in depth for user-pasted text and future code changes. Tenant apps can
 add app-specific patterns through `extraRedactionPatterns`; the defaults live in
-`@issue-reporter/core`. The backend repeats the scan with the same module before writing S3
+`@steventclarke/issue-reporter-core`. The backend repeats the scan with the same module before writing S3
 or creating the issue; if a log line cannot be safely
 scanned, it is dropped instead of sent raw.
 
@@ -606,10 +613,20 @@ scanned, it is dropped instead of sent raw.
 POST https://issues.stevenclarke.dev/v1/reports
 ```
 
+The companion unauthenticated metadata endpoint is:
+
+```text
+GET https://issues.stevenclarke.dev/v1/version
+```
+
+It returns `200 { "apiMajor": 1, "apiVersion": "v1" }`. The client uses it for the coupled
+semver-major check; a missing or malformed response is treated as "unknown" and does not block
+a report.
+
 ### 7.2 Request
 
-This shape is published as `IssueReportRequest` by `@issue-reporter/core` and re-exported
-by `@issue-reporter/client`; the app imports it rather than redeclaring it. Core validates
+This shape is published as `IssueReportRequest` by `@steventclarke/issue-reporter-core` and re-exported
+by `@steventclarke/issue-reporter-client`; the app imports it rather than redeclaring it. Core validates
 slug formats and JSON shapes; the backend config defines which app, environment, category,
 and reporter-provider values are accepted for each tenant.
 
@@ -1076,11 +1093,11 @@ share one source of truth:
 ```text
 issue-reporter/
   package.json                 workspace root; release tooling
-  packages/core/               @issue-reporter/core
+  packages/core/               @steventclarke/issue-reporter-core
     src/contracts.ts           request/response types + Zod schemas
     src/limits.ts              shared size and count limits
     src/redaction.ts           shared secret patterns + redactReport
-  packages/client/             @issue-reporter/client
+  packages/client/             @steventclarke/issue-reporter-client
     src/index.ts               createIssueReporter, submit, createReportId
     src/install-id.ts          storage-adapter installation ID
     src/errors.ts              IssueReporterError + response mapping
@@ -1098,11 +1115,18 @@ together.
 
 Publishing:
 
-- `@issue-reporter/core` and `@issue-reporter/client` are versioned together with the
-  backend and published on release.
-- The client package declares a peer/runtime range that matches the deployed API major
-  version.
-- `@issue-reporter/client` is not used by the backend. The backend imports `core` at build
+- `@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client` share one
+  `MAJOR.MINOR.PATCH` version with the root manifest; the major is the API major used by
+  `/v{major}/reports`. The client depends on the exact matching core version.
+- Package names are owner-scoped because GitHub Packages requires the npm scope to match the
+  repository owner. Tenants map `@steventclarke` to `https://npm.pkg.github.com` in `.npmrc`.
+- `npm run version:bump -- <version>` updates the coupled versions; `npm run version:check`
+  verifies them, including `API_MAJOR`; a `vX.Y.Z` tag triggers the `Release` workflow, which
+  publishes core then client. `workflow_dispatch` with `dry_run: true` rehearses the publish.
+- The client checks `GET /v1/version` once per instance for `{ apiMajor, apiVersion }` and blocks
+  submissions on a major mismatch unless `skipApiVersionCheck: true` is set. The check is
+  opportunistic: a missing or unreadable endpoint does not block a report.
+- `@steventclarke/issue-reporter-client` is not used by the backend. The backend imports `core` at build
   time and bundles it into the Lambda artifacts.
 
 ### 8.13 Optional SSO bearer JWT auth
@@ -1249,7 +1273,7 @@ The backend is platform-global. Each tenant app gets:
   - `/platform/issue-intake/apps/<app>/app-id`
   - `/platform/issue-intake/apps/<app>/repo`
   - `/platform/issue-intake/apps/<app>/labels`;
-- the shared client library: install `@issue-reporter/client` and configure it with the
+- the shared client library: install `@steventclarke/issue-reporter-client` and configure it with the
   app slug, endpoint, environment detection, a storage adapter, and optional app-specific
   redaction patterns. Tenants do not reimplement the report contract, transport, or error
   mapping.
@@ -1312,7 +1336,7 @@ with the backend.
 ### Monorepo coupling without publishing
 
 Rejected: tenants would need to vendor source or use a git dependency, which complicates
-versioning and reuse. Publishing `@issue-reporter/core` and `@issue-reporter/client` keeps
+versioning and reuse. Publishing `@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client` keeps
 the tenant dependency explicit and semver-versioned.
 
 ### Private repository
@@ -1447,13 +1471,16 @@ No production deploy should happen before the GitHub App secret is configured.
     transport metadata and more identifying than the username.
 11. **Web SVG fidelity:** accept imperfect `react-native-svg` chart captures on web, or
     disable screenshots on chart routes until fidelity improves?
-12. **Client library distribution:** publish `@issue-reporter/client` publicly to npm from
+12. **Client library distribution:** publish `@steventclarke/issue-reporter-client` publicly to npm from
     the start, or keep it private/on GitHub Packages until the repo is open-sourced?
-    Recommendation: private registry initially, public npm when the repository is
-    open-sourced; keep the name and version scheme unchanged across the switch.
+    Decision: private registry initially, public npm when the repository is open-sourced.
+    GitHub Packages requires the npm scope to match the repository owner, so the packages are
+    named `@steventclarke/issue-reporter-core` and `@steventclarke/issue-reporter-client`; keep
+    those names and the coupled version scheme across a future registry switch.
 13. **Contract versioning:** should the client library refuse to submit when its major
     version does not match the API major, or rely on the `/v1` path and server validation?
-    Recommendation: `/v1` path plus a semver major check in the client with an opt-out.
+    Decision: `/v1` path plus a one-time client check of `GET /v1/version`, with
+    `skipApiVersionCheck: true` as the opt-out.
 
 ---
 
@@ -1462,11 +1489,11 @@ No production deploy should happen before the GitHub App secret is configured.
 ### Issue reporter (`issue-reporter`)
 
 - [ ] Add `issueIntake` to `config/applications.ts`.
-- [ ] Add `packages/core/` contracts, limits, and redaction shared by client and backend.
-- [ ] Add `packages/client/` with `createIssueReporter`, `submit`, report ID, installation
+- [x] Add `packages/core/` contracts, limits, and redaction shared by client and backend.
+- [x] Add `packages/client/` with `createIssueReporter`, `submit`, report ID, installation
       ID, and typed errors.
-- [ ] Add a release workflow that publishes `@issue-reporter/core` and
-      `@issue-reporter/client` with matching versions.
+- [x] Add a release workflow that publishes `@steventclarke/issue-reporter-core` and
+      `@steventclarke/issue-reporter-client` with matching versions.
 - [ ] Add `lambda/issue-intake/` handlers and helpers.
 - [ ] Add report JSON upload and reuse `core` redaction in the ingest handler.
 - [ ] Add issue-body rendering with logs, stack traces, and full-data link.
@@ -1479,7 +1506,7 @@ No production deploy should happen before the GitHub App secret is configured.
 
 ### Client (`steventclarke/iron-altar`)
 
-- [ ] Install `@issue-reporter/client`, `expo-file-system`, `react-native-view-shot`, and
+- [ ] Install `@steventclarke/issue-reporter-client`, `expo-file-system`, `react-native-view-shot`, and
       `html2canvas-pro`.
 - [ ] Add `src/lib/screenshot.ts` with native `tmpfile` and web `base64` paths.
 - [ ] Add `src/lib/report-log-buffer.ts` for console and unhandled-error capture.
