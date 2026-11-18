@@ -1,7 +1,7 @@
 flowchart LR
   U["User"] -->|"sign in"| IDP["Cognito User Pool<br/>OIDC · Google federation"]
   IDP -->|"ID token + refresh token"| APP["Tenant app<br/>Iron Altar / future tenant"]
-  APP -->|"getBearerToken()"| CLIENT["@issue-reporter/client<br/>token provider · redaction · transport"]
+  APP -->|"getBearerToken()"| CLIENT["@steventclarke/issue-reporter-client<br/>token provider · redaction · transport"]
   CLIENT -->|"POST /v1/reports<br/>Authorization: Bearer JWT"| CF["CloudFront<br/>OAC · forward Authorization<br/>no caching for POST"]
   CF -->|"signed origin request"| FURL["Lambda Function URL<br/>AWS_IAM"]
   FURL --> ING["Ingest Lambda"]

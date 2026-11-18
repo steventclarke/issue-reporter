@@ -1,4 +1,4 @@
-export * from '@issue-reporter/core';
+export * from '@steventclarke/issue-reporter-core';
 
 export { estimateBase64Bytes } from './base64';
 export {

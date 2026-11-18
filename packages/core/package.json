@@ -1,7 +1,12 @@
 {
-  "name": "@issue-reporter/core",
-  "version": "0.1.0",
+  "name": "@steventclarke/issue-reporter-core",
+  "version": "1.0.0",
   "description": "Shared issue report contract, limits, and secret redaction",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steventclarke/issue-reporter.git",
+    "directory": "packages/core"
+  },
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

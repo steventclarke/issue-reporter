@@ -1,16 +1,18 @@
 import {
+  API_MAJOR,
   API_VERSION,
   LOG_MAX_BYTES,
   REQUEST_BODY_LIMIT_BYTES,
   SANITIZED_DATA_LIMIT_BYTES,
   SCREENSHOT_MAX_BYTES,
   acceptedReportResponseSchema,
+  apiVersionResponseSchema,
   issueReportRequestSchema,
   redactReport,
   type AcceptedReportResponse,
   type AuthFailureReason,
   type IssueReportRequest,
-} from '@issue-reporter/core';
+} from '@steventclarke/issue-reporter-core';
 import { estimateBase64Bytes } from './base64';
 import {
   validateConfig,
@@ -122,6 +124,69 @@ export const createIssueReporter = (config: IssueReporterConfig): IssueReporter 
     }
   };
 
+  let apiVersionChecked = false;
+  let apiVersionMismatch: IssueReporterError | null = null;
+  const checkApiVersion = async (): Promise<void> => {
+    if (resolved.skipApiVersionCheck || apiVersionChecked) {
+      if (apiVersionMismatch) throw apiVersionMismatch;
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), resolved.timeoutMs);
+    try {
+      const response = await resolved.fetch(`${resolved.endpoint}/${API_VERSION}/version`, {
+        method: 'GET',
+        headers: {},
+        signal: controller.signal,
+      });
+      if (response.status !== 200) {
+        apiVersionChecked = true;
+        return;
+      }
+
+      let responseBody: unknown;
+      try {
+        responseBody = await response.json();
+      } catch {
+        apiVersionChecked = true;
+        return;
+      }
+
+      const parsed = apiVersionResponseSchema.safeParse(responseBody);
+      if (!parsed.success) {
+        apiVersionChecked = true;
+        return;
+      }
+
+      if (parsed.data.apiMajor !== API_MAJOR || parsed.data.apiVersion !== API_VERSION) {
+        apiVersionChecked = true;
+        apiVersionMismatch = new IssueReporterError(
+          'api_version_mismatch',
+          'The client and report API versions are incompatible',
+          {
+            status: response.status,
+            apiMajor: parsed.data.apiMajor,
+            expectedApiMajor: API_MAJOR,
+          },
+        );
+        emitDiagnostic(resolved, {
+          event: 'api_version_mismatch',
+          apiMajor: parsed.data.apiMajor,
+          expectedApiMajor: API_MAJOR,
+        });
+        throw apiVersionMismatch;
+      }
+
+      apiVersionChecked = true;
+    } catch (error) {
+      if (error instanceof IssueReporterError && error.code === 'api_version_mismatch') throw error;
+      apiVersionChecked = true;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   return {
     getInstallationId: loadInstallationId,
 
@@ -129,6 +194,7 @@ export const createIssueReporter = (config: IssueReporterConfig): IssueReporter 
       const reportId = input.reportId ?? createReportId();
 
       try {
+        await checkApiVersion();
         const sanitized = redactReport(input, {
           extraRedactionPatterns: resolved.extraRedactionPatterns,
         });

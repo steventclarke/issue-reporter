@@ -1,4 +1,4 @@
-import { errorResponseSchema, type AuthFailureReason } from '@issue-reporter/core';
+import { errorResponseSchema, type AuthFailureReason } from '@steventclarke/issue-reporter-core';
 
 export type IssueReporterErrorCode =
   | 'validation'
@@ -8,6 +8,7 @@ export type IssueReporterErrorCode =
   | 'payload_too_large'
   | 'rate_limited'
   | 'auth_unavailable'
+  | 'api_version_mismatch'
   | 'network'
   | 'server';
 
@@ -19,6 +20,8 @@ export type IssueReporterErrorDetails = {
   issues?: string[];
   retryAfterSeconds?: number;
   reason?: AuthFailureReason;
+  apiMajor?: number;
+  expectedApiMajor?: number;
 };
 
 export class IssueReporterError extends Error {
@@ -28,6 +31,8 @@ export class IssueReporterError extends Error {
   readonly issues?: string[];
   readonly retryAfterSeconds?: number;
   readonly reason?: AuthFailureReason;
+  readonly apiMajor?: number;
+  readonly expectedApiMajor?: number;
 
   constructor(
     code: IssueReporterErrorCode,
@@ -42,6 +47,8 @@ export class IssueReporterError extends Error {
     this.issues = details.issues;
     this.retryAfterSeconds = details.retryAfterSeconds;
     this.reason = details.reason;
+    this.apiMajor = details.apiMajor;
+    this.expectedApiMajor = details.expectedApiMajor;
   }
 }
 
@@ -59,6 +66,7 @@ const ERROR_MESSAGES: Record<IssueReporterErrorCode, string> = {
   payload_too_large: 'The report is too large',
   rate_limited: 'Too many reports were submitted recently',
   auth_unavailable: 'The SSO service is temporarily unavailable',
+  api_version_mismatch: 'The client and report API versions are incompatible',
   network: 'The report could not be sent',
   server: 'The report service returned an unexpected response',
 };
