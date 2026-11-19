@@ -195,8 +195,9 @@ declaring any phase done.
 - [x] Define the coupled versioning scheme for `@stevenclarke/issue-reporter-core`,
       `@stevenclarke/issue-reporter-client`, and the API major: root/core/client versions match,
       the major equals `API_MAJOR`, and the endpoint stays `/v{major}`.
-- [x] Add a release workflow publishing both packages with matching versions to the platform
-      CodeArtifact repository using short-lived OIDC/CodeArtifact tokens.
+- [x] Add a release workflow in the `production` GitHub environment publishing both packages
+      with matching versions to the platform CodeArtifact repository using short-lived
+      OIDC/CodeArtifact tokens.
 - [x] Keep the `/v1` path and add a client semver-major check against `GET /v1/version`, with
       `skipApiVersionCheck: true` as the documented opt-out.
 - [x] Verify a dry-run publish with `npm run release:check` / workflow dispatch and document the

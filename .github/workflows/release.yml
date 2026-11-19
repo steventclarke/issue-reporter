@@ -23,6 +23,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: production
     env:
       AWS_REGION: us-east-2
       RELEASE_ROLE_ARN: ${{ vars.RELEASE_ROLE_ARN }}
