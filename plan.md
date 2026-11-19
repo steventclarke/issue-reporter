@@ -203,33 +203,33 @@ declaring any phase done.
 - [x] Verify a dry-run publish with `npm run release:check` / workflow dispatch and document the
       tenant upgrade path in the README and design docs.
 
-### Phase 5: Ingest Lambda
+### Phase 5: Ingest Lambda — Completed
 
-- [ ] Add the handler skeleton with structured JSON logging (`reportId`, `app`, `status`
+- [x] Add the handler skeleton with structured JSON logging (`reportId`, `app`, `status`
       only) and no raw payload logging.
-- [ ] Verify origin allowlist (`403`) and HTTP method (`405`).
-- [ ] For `auth.mode = 'oidc'`, verify the SSO bearer JWT against the configured issuer/JWKS,
+- [x] Verify origin allowlist (`403`) and HTTP method (`405`).
+- [x] For `auth.mode = 'oidc'`, verify the SSO bearer JWT against the configured issuer/JWKS,
       audience, expiry, token use, and group/domain/subject allowlist before any side effects.
-- [ ] Overwrite `reporter` from verified claims and rate-limit authenticated apps by subject.
-- [ ] Return metadata-only `401`/`403`/`503` auth failures with `reason` codes; never log tokens
+- [x] Overwrite `reporter` from verified claims and rate-limit authenticated apps by subject.
+- [x] Return metadata-only `401`/`403`/`503` auth failures with `reason` codes; never log tokens
       or raw claims.
-- [ ] Enforce the 6 MB body limit (`413`) and parse JSON safely.
-- [ ] Validate with the shared Zod schemas, strip unknown keys, and return `400` issues.
-- [ ] Handle the `website` honeypot: generic `202`, no writes, `honeypot_triggered` metric.
-- [ ] Check the existing DynamoDB record first and return the current status for duplicate
+- [x] Enforce the 6 MB body limit (`413`) and parse JSON safely.
+- [x] Validate with the shared Zod schemas, strip unknown keys, and return `400` issues.
+- [x] Handle the `website` honeypot: generic `202`, no writes, `honeypot_triggered` metric.
+- [x] Check the existing DynamoDB record first and return the current status for duplicate
       `reportId` values.
-- [ ] Enforce installation/IP/app rate limits with atomic `ADD` + TTL and return `429`
+- [x] Enforce installation/IP/app rate limits with atomic `ADD` + TTL and return `429`
       with `retryAfterSeconds`.
-- [ ] Reuse `core` redaction on text, app data, logs, and stack traces; drop unscannable
+- [x] Reuse `core` redaction on text, app data, logs, and stack traces; drop unscannable
       log lines; fail with `500` before storing on unexpected redaction errors.
-- [ ] Serialize sanitized `report.json` and enforce the 3.5 MB data limit.
-- [ ] Decode and size-check the screenshot; upload `report.json` and screenshot to the
+- [x] Serialize sanitized `report.json` and enforce the 3.5 MB data limit.
+- [x] Decode and size-check the screenshot; upload `report.json` and screenshot to the
       documented S3 keys.
-- [ ] Write `status = receiving` conditionally, then update to `queued`, then send one SQS
+- [x] Write `status = receiving` conditionally, then update to `queued`, then send one SQS
       message (`reportId`, `app`, `environment`) before returning `202`.
-- [ ] Roll back the record and uploaded objects on any failure so the client can retry with
+- [x] Roll back the record and uploaded objects on any failure so the client can retry with
       the same `reportId`.
-- [ ] Add tests for every field/boundary, redaction, idempotency, honeypot, rate limits,
+- [x] Add tests for every field/boundary, redaction, idempotency, honeypot, rate limits,
       screenshot types/sizes, upload contents, rollback, and log privacy.
 
 ### Phase 6: Worker Lambda
