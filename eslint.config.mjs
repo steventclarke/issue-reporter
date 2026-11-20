@@ -6,6 +6,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       'coverage/**',
+      'cdk.out/**',
       'node_modules/**',
       'package-lock.json',
       '*.config.{js,cjs,mjs}',
