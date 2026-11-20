@@ -1,9 +1,11 @@
 import type {
   CreatedIssue,
   CreateIssueInput,
+  GetIssueInput,
   GithubAppSecret,
   GithubClientFactory,
   IssueClient,
+  IssueState,
 } from './types';
 
 type OctokitIssueResponse = {
@@ -13,10 +15,17 @@ type OctokitIssueResponse = {
   };
 };
 
+type OctokitIssueStateResponse = {
+  data: {
+    state: IssueState['state'];
+  };
+};
+
 type OctokitLike = {
   rest: {
     issues: {
       create(input: CreateIssueInput): Promise<OctokitIssueResponse>;
+      get(input: GetIssueInput): Promise<OctokitIssueStateResponse>;
     };
   };
 };
@@ -43,6 +52,11 @@ export const clearGithubClientCache = (): void => {
   clientCache.clear();
 };
 
+const wrapClient = (client: Promise<IssueClient>): IssueClient => ({
+  createIssue: (input) => client.then((resolved) => resolved.createIssue(input)),
+  getIssue: (input) => client.then((resolved) => resolved.getIssue(input)),
+});
+
 export const createGithubClientFactory = (
   createApp: AppFactory = defaultAppFactory,
 ): GithubClientFactory => {
@@ -60,7 +74,7 @@ export const createGithubClientFactory = (
     const cacheKey = `${appId}:${installationId}`;
     const cached = clientCache.get(cacheKey);
     if (cached) {
-      return { createIssue: (input) => cached.then((client) => client.createIssue(input)) };
+      return wrapClient(cached);
     }
 
     const client = Promise.resolve(createApp({ appId, privateKey }))
@@ -70,6 +84,10 @@ export const createGithubClientFactory = (
           const response = await octokit.rest.issues.create(input);
           return { number: response.data.number, htmlUrl: response.data.html_url };
         },
+        getIssue: async (input: GetIssueInput): Promise<IssueState> => {
+          const response = await octokit.rest.issues.get(input);
+          return { state: response.data.state };
+        },
       }))
       .catch((error: unknown) => {
         clientCache.delete(cacheKey);
@@ -77,6 +95,6 @@ export const createGithubClientFactory = (
       });
 
     clientCache.set(cacheKey, client);
-    return { createIssue: (input) => client.then((resolved) => resolved.createIssue(input)) };
+    return wrapClient(client);
   };
 };

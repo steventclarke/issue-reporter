@@ -199,7 +199,7 @@ stateDiagram-v2
   failed --> created: SQS retry succeeds
   failed --> DLQ: maxReceiveCount exceeded
   DLQ --> [*]: alarm raised, operator triages
-  created --> [*]
+  created --> [*]: retention expires attachments 30 days after linked issue closes
 
   note right of receiving
     Not visible to the client.

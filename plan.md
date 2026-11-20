@@ -252,16 +252,16 @@ declaring any phase done.
       version/environment in body, body links, truncation, label fallback, already-created
       no-op, retry/DLQ behavior, and absence of secrets in logs.
 
-### Phase 6.1: Attachment retention — Not started
+### Phase 6.1: Attachment retention — Completed
 
-- [ ] Add a daily scheduled retention handler in `lambda/issue-intake/` that finds reports
+- [x] Add a daily scheduled retention handler in `lambda/issue-intake/` that finds reports
       with `status = created`, checks the linked GitHub issue state via the App token, and
       records the closure date (idempotently) when the issue is closed.
-- [ ] Tag the S3 objects for closed reports so an S3 lifecycle rule expires them 30 days
+- [x] Tag the S3 objects for closed reports so an S3 lifecycle rule expires them 30 days
       after closure; leave reports with open issues untouched.
-- [ ] Clear the optional DynamoDB `ttl`/closure metadata consistently with attachment
+- [x] Clear the optional DynamoDB `ttl`/closure metadata consistently with attachment
       expiry; never delete the record before the objects expire.
-- [ ] Add tests for open vs closed issues, idempotent closure tagging, 30-day expiry
+- [x] Add tests for open vs closed issues, idempotent closure tagging, 30-day expiry
       configuration, and missing GitHub issue/secret handling.
 
 ### Phase 7: CDK infrastructure

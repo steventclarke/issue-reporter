@@ -967,8 +967,14 @@ updatedAt: ISO-8601
 issueNumber?: number
 issueUrl?: string
 error?: string
+closureDate?: string
+attachmentExpiryDate?: string
 ttl?: number
 ```
+
+For closed issues, the daily retention handler sets `closureDate` and
+`attachmentExpiryDate` and sets `ttl` to the attachment expiry time, so DynamoDB never
+removes the report before its attachments expire.
 
 Rate-limit record:
 
@@ -1006,8 +1012,11 @@ uses:
 ![Screenshot](https://issues.stevenclarke.dev/attachments/reports/iron-altar/<reportId>/screenshot.jpg)
 ```
 
-Retention: no automatic expiry in v1 so report data and screenshots remain available for
-triage. A future lifecycle policy can expire attachments after the issue is closed.
+Retention: reports with open GitHub issues are left untouched. When a linked issue closes,
+the daily retention handler copies each attachment to itself with `closure-marker=true`,
+`closure-date=YYYY-MM-DD`, and `attachment-expiry-date=YYYY-MM-DD` tags. The copy resets
+`LastModified` so the Phase 7 lifecycle rule expires tagged objects 30 days after closure.
+The DynamoDB `ttl` is set to the same expiry date.
 
 ### 8.8 SQS and retries
 
