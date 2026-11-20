@@ -361,6 +361,9 @@ declaring any phase done.
 
 ### Phase 11: Production rollout
 
+- [x] Add a production deploy workflow triggered by pushes to `main` and manual dispatch.
+      Verification runs on every trigger; deployment waits for approval in the `production`
+      GitHub Environment and deploys only `IssueIntakeStack-prod`.
 - [ ] Deploy the production stack after the required approval; verify the endpoint and
       alarms.
 - [ ] Validate the initial alarm thresholds (Lambda errors, DLQ depth) against real

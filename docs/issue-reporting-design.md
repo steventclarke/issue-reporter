@@ -1142,11 +1142,15 @@ Publishing:
   variable `RELEASE_ROLE_ARN` via GitHub OIDC, reads `/platform/artifacts/codeartifact/*` from
   SSM, generates a short-lived token, and publishes core then client. `workflow_dispatch`
   with `dry_run: true` rehearses the publish.
-- The client checks `GET /v1/version` once per instance for `{ apiMajor, apiVersion }` and blocks
-  submissions on a major mismatch unless `skipApiVersionCheck: true` is set. The check is
+- Deployment is separate from publishing. The `Deploy (Production)` workflow runs on pushes to
+  `main` and `workflow_dispatch`, verifies the repository, then pauses for approval in the
+  `production` GitHub Environment. After approval it assumes `DEPLOY_ROLE_ARN` via OIDC and runs
+  `cdk diff` and `cdk deploy -c environment=prod --all`. No preview deployment is performed.
+- The client checks `GET /v1/version` once per instance for `{ apiMajor, apiVersion }` and
+  blocks submissions on a major mismatch unless `skipApiVersionCheck: true` is set. The check is
   opportunistic: a missing or unreadable endpoint does not block a report.
-- `@stevenclarke/issue-reporter-client` is not used by the backend. The backend imports `core` at build
-  time and bundles it into the Lambda artifacts.
+- `@stevenclarke/issue-reporter-client` is not used by the backend. The backend imports `core` at
+  build time and bundles it into the Lambda artifacts.
 
 ### 8.13 Optional SSO bearer JWT auth
 
