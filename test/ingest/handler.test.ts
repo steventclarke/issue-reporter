@@ -65,6 +65,7 @@ describe('request gate', () => {
     );
     expect(preflight.statusCode).toBe(204);
     expect(preflight.headers['access-control-allow-origin']).toBe(testOrigin);
+    expect(preflight.headers['access-control-allow-headers']).toContain('x-amz-content-sha256');
 
     const version = await handler(
       makeEvent({}, { rawPath: '/v1/version', requestContext: { http: { method: 'GET' } } }),

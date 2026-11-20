@@ -5,7 +5,7 @@ Platform-global in-app issue intake for `stevenclarke.dev`, plus the published
 the tenant repositories (first: `steventclarke/iron-altar`); this repository owns the
 backend, the shared contract/redaction code, the client library, and the public endpoint.
 
-- **Status:** Design complete; Phases 0–4 implemented. Open questions resolved below.
+- **Status:** Design complete; Phases 0–9 implemented. Open questions resolved below.
 - **Design background:** [`docs/issue-reporting-design.md`](docs/issue-reporting-design.md)
   and [`docs/issue-reporting-architecture.md`](docs/issue-reporting-architecture.md)
   (derived diagrams). This plan is authoritative where review decisions differ (§7).
@@ -104,8 +104,8 @@ issue-reporter/
   a generic `202`.
 - CORS origins: `https://iron-altar.stevenclarke.dev`,
   `https://iron-altar-preview.stevenclarke.dev`, `http://localhost:8081`,
-  `http://localhost:19006`; methods `POST`, `OPTIONS`; headers `content-type` and
-  `authorization`.
+  `http://localhost:19006`; methods `POST`, `OPTIONS`; headers `content-type`,
+  `authorization`, and `x-amz-content-sha256` (required by CloudFront OAC for `POST`/`PUT`).
 - Rate limits use `CloudFront-Viewer-Address` (hashed/raw internally, never published).
 
 ## 3. Architecture summary
@@ -313,22 +313,32 @@ declaring any phase done.
       space-separated PEM text.
 - [x] Verify the App can mint an installation token and create a test issue.
 
-### Phase 9: Preview deployment and end-to-end verification
+### Phase 9: Preview deployment and end-to-end verification — Completed
 
-- [ ] Deploy the preview stack (`npx cdk deploy -c environment=preview --all`) and verify
+- [x] Deploy the preview stack (`npx cdk deploy -c environment=preview --all`) and verify
       DNS, TLS, headers, caching, and that the Function URL is not publicly invokable.
-- [ ] Submit a report from the preview app; confirm S3 `report.json` + screenshot,
+- [x] Submit a report from the preview app; confirm S3 `report.json` + screenshot,
       DynamoDB record, SQS processing, and the GitHub issue with full-data link, logs, and
       stack traces.
-- [ ] Confirm the preview issue is public, titled `[iron-altar v<version>] <summary>`, and
-      clearly indicates environment and version; verify reporter identity when SSO is wired.
-- [ ] Close a test issue and verify the retention handler tags attachments and the
-      lifecycle rule is configured for 30-day expiry (check the computed expiry date).
-- [ ] Resubmit the same `reportId`; confirm no duplicate issue and no S3 rewrite.
-- [ ] Exceed a rate limit and confirm `429` with `retryAfterSeconds`.
-- [ ] Force a worker failure and confirm the `failed` status, retries, DLQ, and alarm.
-- [ ] Confirm logs contain no descriptions, app data, logs, stack traces, contact details,
+- [x] Confirm the preview issue is public, titled `[iron-altar v<version>] <summary>`, and
+      clearly indicates environment and version; reporter identity verification is deferred
+      to Phase 10 because preview uses `auth.mode = 'none'`.
+- [x] Close a test issue and verify the retention handler tags attachments and the
+      lifecycle rule is configured for 30-day expiry; computed expiry `2026-12-20`. Fix the
+      reserved `ttl` update expression found during live verification.
+- [x] Resubmit the same `reportId`; confirm no duplicate issue and no S3 rewrite.
+- [x] Exceed a rate limit and confirm `429` with `retryAfterSeconds`.
+- [x] Force a worker failure and confirm the `failed` status, retries, DLQ, and alarm.
+- [x] Confirm logs contain no descriptions, app data, logs, stack traces, contact details,
       screenshots, or private key material.
+- [x] Import the existing GitHub App secret from SSM instead of creating it, and grant
+      CloudFront both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction` permissions.
+- [x] Send `x-amz-content-sha256` from the client for OAC `POST`/`PUT` requests and allow
+      it in CORS.
+
+Preview E2E report `224f6ced-3840-4c9c-9a40-9cc62b525f24` created public issue #16. Rate-limit
+reports created issues #17–#20, which were closed after verification. The forced-failure DLQ
+message was purged after the alarm transitioned to `ALARM`.
 
 ### Phase 10: Tenant client integration (`steventclarke/iron-altar` repository)
 

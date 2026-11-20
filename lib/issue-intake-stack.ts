@@ -21,6 +21,7 @@ import { FunctionUrlOrigin, S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-or
 import { AttributeType, BillingMode, Table, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Architecture, FunctionUrlAuthType, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -154,18 +155,11 @@ export class IssueIntakeStack extends cdk.Stack {
       deadLetterQueue: { queue: workerDlq, maxReceiveCount: 5 },
     });
 
-    const githubAppSecret = new Secret(this, 'GitHubAppSecret', {
-      secretName: '/platform/issue-intake/github-app',
-      description: 'GitHub App credentials for issue intake',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({
-          appId: 0,
-          installationId: 0,
-        }),
-        generateStringKey: 'privateKey',
-        excludeCharacters: '"\\/\n\r',
-      },
-    });
+    const githubAppSecret = Secret.fromSecretNameV2(
+      this,
+      'GitHubAppSecret',
+      '/platform/issue-intake/github-app',
+    );
 
     const ingestFunction = new NodejsFunction(this, 'IngestFunction', {
       entry: join(__dirname, '../src/ingest/index.ts'),
@@ -295,6 +289,12 @@ export class IssueIntakeStack extends cdk.Stack {
       },
     });
 
+    ingestFunction.addPermission('CloudFrontInvokeFunction', {
+      principal: new ServicePrincipal('cloudfront.amazonaws.com'),
+      action: 'lambda:InvokeFunction',
+      sourceArn: distribution.distributionArn,
+    });
+
     new ARecord(this, 'IssuesAliasV4', {
       zone: hostedZone,
       recordName: 'issues',
@@ -344,13 +344,6 @@ export class IssueIntakeStack extends cdk.Stack {
       ],
       true,
     );
-    NagSuppressions.addResourceSuppressions(githubAppSecret, [
-      {
-        id: 'AwsSolutions-SMG4',
-        reason:
-          'GitHub App credentials are rotated manually in Phase 8; automatic rotation cannot update the App private key.',
-      },
-    ]);
     NagSuppressions.addResourceSuppressions(distribution, [
       {
         id: 'AwsSolutions-CFR1',

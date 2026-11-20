@@ -91,7 +91,7 @@ export const createIngestHandler = (dependencies: IngestDependencies) => {
     const corsHeaders = {
       'access-control-allow-origin': origin,
       'access-control-allow-methods': 'GET, POST, OPTIONS',
-      'access-control-allow-headers': 'content-type, authorization',
+      'access-control-allow-headers': 'content-type, authorization, x-amz-content-sha256',
       'access-control-max-age': '86400',
       vary: 'Origin',
     };
