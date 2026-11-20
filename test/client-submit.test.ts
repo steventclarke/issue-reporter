@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   createIssueReporter,
   createReportId,
@@ -25,6 +26,8 @@ import {
 type MockFetch = jest.Mock<Promise<FetchResponse>, [string, FetchInit]>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const payloadHash = (body: string): string => createHash('sha256').update(body).digest('hex');
 
 const makeStorage = (initial?: string, key = 'issue-reporter/installation-id') => {
   const values = new Map<string, string>();
@@ -91,7 +94,10 @@ describe('createIssueReporter', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://issues.example.test/v1/reports');
     expect(init.method).toBe('POST');
-    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init.headers).toEqual({
+      'Content-Type': 'application/json',
+      'x-amz-content-sha256': payloadHash(init.body ?? ''),
+    });
     expect(init.signal).toBeDefined();
 
     const body = JSON.parse(init.body ?? '');
@@ -177,6 +183,7 @@ describe('createIssueReporter', () => {
     const [, init] = (config.fetch as MockFetch).mock.calls[0]!;
     expect(init.headers).toEqual({
       'Content-Type': 'application/json',
+      'x-amz-content-sha256': payloadHash(init.body ?? ''),
       Authorization: `Bearer ${token}`,
     });
     expect(init.body).not.toContain(token);
@@ -202,7 +209,10 @@ describe('createIssueReporter', () => {
       error: { code: 'unauthorized', status: 401, reason: 'missing_token' },
     });
     const [, init] = (config.fetch as MockFetch).mock.calls[0]!;
-    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init.headers).toEqual({
+      'Content-Type': 'application/json',
+      'x-amz-content-sha256': payloadHash(init.body ?? ''),
+    });
     expect(events).toEqual([
       { event: 'auth_required', reportId: fixtureReportId },
       { event: 'request_started', reportId: fixtureReportId },

@@ -98,9 +98,9 @@ export const createAwsDependencies = (input: {
               TableName: input.tableName,
               Key: { pk: `REPORT#${reportId}`, sk: 'META' },
               UpdateExpression:
-                'SET closureDate = :closureDate, attachmentExpiryDate = :attachmentExpiryDate, ttl = :ttl, #updatedAt = :updatedAt',
+                'SET closureDate = :closureDate, attachmentExpiryDate = :attachmentExpiryDate, #ttl = :ttl, #updatedAt = :updatedAt',
               ConditionExpression: 'attribute_not_exists(closureDate)',
-              ExpressionAttributeNames: { '#updatedAt': 'updatedAt' },
+              ExpressionAttributeNames: { '#ttl': 'ttl', '#updatedAt': 'updatedAt' },
               ExpressionAttributeValues: {
                 ':closureDate': update.closureDate,
                 ':attachmentExpiryDate': update.attachmentExpiryDate,

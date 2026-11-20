@@ -758,7 +758,10 @@ Allowed origins:
 - `http://localhost:19006`
 
 The Lambda Function URL and CloudFront must allow `POST`, `OPTIONS`, the
-`content-type` header, and the `authorization` header (for apps with `auth.mode = 'oidc'`).
+`content-type` header, the `authorization` header (for apps with `auth.mode = 'oidc'`), and
+`x-amz-content-sha256`. CloudFront OAC signs Function URL requests; for `POST`/`PUT` the
+client computes the SHA-256 of the JSON body and sends it in `x-amz-content-sha256` so the
+signature matches the forwarded payload.
 
 ### 7.5 Limits
 
@@ -815,11 +818,12 @@ Rendered architecture, sequence, and lifecycle diagrams:
 - The platform already owns the `stevenclarke.dev` hosted zone and wildcard certificate.
 - CloudFront can use the existing certificate in `us-east-1`; no new regional certificate
   is needed.
-- `FunctionUrlOrigin.withOriginAccessControl` is supported by CDK 2.176.0 and automatically
-  grants CloudFront permission to invoke the Function URL.
+- `FunctionUrlOrigin.withOriginAccessControl` is supported by CDK 2.176.0 and configures OAC;
+  the Function URL also needs both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction`
+  permissions for the distribution.
 - Avoids API Gateway’s extra configuration and fixed cost.
 - The Function URL is not public: it uses `AWS_IAM` auth and CloudFront signs origin
-  requests with OAC.
+  requests with OAC. The client includes `x-amz-content-sha256` on `POST`/`PUT` requests.
 
 API Gateway remains a valid alternative if the platform later needs per-method throttling
 or usage plans.

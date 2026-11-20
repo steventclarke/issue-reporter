@@ -166,9 +166,17 @@ describe('IssueIntakeStack', () => {
     });
   });
 
-  it('creates the GitHub App secret and daily retention schedule', () => {
-    template.hasResourceProperties('AWS::SecretsManager::Secret', {
-      Name: '/platform/issue-intake/github-app',
+  it('references the existing GitHub App secret and daily retention schedule', () => {
+    template.resourceCountIs('AWS::SecretsManager::Secret', 0);
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith(['secretsmanager:GetSecretValue']),
+            Resource: Match.anyValue(),
+          }),
+        ]),
+      }),
     });
     template.hasResourceProperties('AWS::Events::Rule', {
       ScheduleExpression: 'cron(0 3 * * ? *)',
@@ -196,6 +204,11 @@ describe('IssueIntakeStack', () => {
           }),
         ]),
       }),
+    });
+    template.hasResourceProperties('AWS::Lambda::Permission', {
+      Action: 'lambda:InvokeFunction',
+      Principal: 'cloudfront.amazonaws.com',
+      SourceArn: Match.anyValue(),
     });
     template.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
       ResponseHeadersPolicyConfig: {
