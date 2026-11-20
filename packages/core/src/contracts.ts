@@ -156,6 +156,7 @@ export type LogEntry = z.infer<typeof logEntrySchema>;
 export type StackTraceEntry = z.infer<typeof stackTraceEntrySchema>;
 export type ClientInfo = z.infer<typeof clientInfoSchema>;
 export type ScreenshotAttachment = z.infer<typeof screenshotSchema>;
+export type ScreenshotContentType = z.infer<typeof screenshotContentTypeSchema>;
 export type IssueReportRequest = z.infer<typeof issueReportRequestSchema>;
 export type ReportStatus = z.infer<typeof reportStatusSchema>;
 export type AcceptedReportResponse = z.infer<typeof acceptedReportResponseSchema>;

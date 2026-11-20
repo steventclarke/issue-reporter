@@ -232,23 +232,23 @@ declaring any phase done.
 - [x] Add tests for every field/boundary, redaction, idempotency, honeypot, rate limits,
       screenshot types/sizes, upload contents, rollback, and log privacy.
 
-### Phase 6: Worker Lambda
+### Phase 6: Worker Lambda — Completed
 
-- [ ] Consume one SQS message at a time with `reportBatchItemFailures: true`.
-- [ ] Skip records already `created`; otherwise read `report.json` from S3.
-- [ ] Load the GitHub App secret from Secrets Manager, normalize escaped newlines, create
+- [x] Consume one SQS message at a time with `reportBatchItemFailures: true`.
+- [x] Skip records already `created`; otherwise read `report.json` from S3.
+- [x] Load the GitHub App secret from Secrets Manager, normalize escaped newlines, create
       an Octokit App client, and cache installation tokens in memory.
-- [ ] Render the issue body per design §9, plus a Reporter section with SSO identity when
+- [x] Render the issue body per design §9, plus a Reporter section with SSO identity when
       supplied: sections, full-data and screenshot links, app-data summary, diagnostics
       JSON, logs/stack traces, triage checklist, hidden metadata comment, "Disabled by
       reporter." text, and truncation at GitHub's 65,536 character limit. Show app version
       and environment prominently in the Client section for both prod and preview.
-- [ ] Create the issue with title `[<app> v<version>] <summary>` (from `client.version`,
+- [x] Create the issue with title `[<app> v<version>] <summary>` (from `client.version`,
       falling back to diagnostics version or `unknown`) and config + category +
       environment labels; retry without labels on GitHub `422`.
-- [ ] Update DynamoDB with `status = created`, `issueNumber`, `issueUrl`, and `updatedAt`;
+- [x] Update DynamoDB with `status = created`, `issueNumber`, `issueUrl`, and `updatedAt`;
       mark unrecoverable failures `failed` and let SQS retry to the DLQ.
-- [ ] Add tests with mocked Octokit for success, versioned title, reporter identity,
+- [x] Add tests with mocked Octokit for success, versioned title, reporter identity,
       version/environment in body, body links, truncation, label fallback, already-created
       no-op, retry/DLQ behavior, and absence of secrets in logs.
 

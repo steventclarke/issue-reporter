@@ -1153,8 +1153,11 @@ claim-derived `reporter`, and subject-based rate limiting. The rendered architec
 ### Title
 
 ```text
-[iron-altar] <summary>
+[<app> v<version>] <summary>
 ```
+
+`<version>` comes from `client.version`, falls back to a diagnostics version, and is
+`unknown` when neither is present.
 
 ### Labels
 
@@ -1181,6 +1184,13 @@ is not lost.
 ## Contact
 
 <contact or "Not provided">
+
+## Reporter
+
+- Provider: <provider>
+- Subject: <subject>
+- Email: <email or "Not provided">
+- Name: <name or "Not provided">
 
 ## Client
 
@@ -1250,7 +1260,8 @@ The complete tenant app-data snapshot is in `report.json`.
 ````
 
 If automatic data is disabled, the app-data, diagnostics, logs, and stack-trace sections
-say “Disabled by reporter.” If no screenshot was attached, the screenshot section is
+say “Disabled by reporter.” If no verified reporter identity is supplied, the Reporter
+section says “Not provided.” If no screenshot was attached, the screenshot section is
 omitted. If the body would exceed GitHub’s 65,536-character limit, the worker truncates
 the inline logs and stack traces and relies on the `report.json` link for the full data.
 
