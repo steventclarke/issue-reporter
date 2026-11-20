@@ -1,4 +1,5 @@
 import {
+  ISSUE_CATEGORIES,
   acceptedReportResponseSchema,
   apiVersionResponseSchema,
   appDataSchema,
@@ -12,6 +13,10 @@ import { cloneValidReportRequest } from './fixtures/issue-report';
 type RequestMutator = (request: IssueReportRequest) => void;
 
 describe('issueReportRequestSchema', () => {
+  it('exports the fixed issue categories', () => {
+    expect(ISSUE_CATEGORIES).toEqual(['bug', 'feature', 'other']);
+  });
+
   it('accepts the shared contract fixture', () => {
     expect(issueReportRequestSchema.safeParse(cloneValidReportRequest()).success).toBe(true);
   });
@@ -20,7 +25,7 @@ describe('issueReportRequestSchema', () => {
     const request = cloneValidReportRequest();
     request.app = 'iron-altar';
     request.environment = 'preview';
-    request.category = 'enhancement';
+    request.category = 'feature';
     request.reporter!.provider = 'google';
     request.client.platform = 'web';
     request.appData = { any: { nested: [1, 'two', null] } };
@@ -56,7 +61,14 @@ describe('issueReportRequestSchema', () => {
   it.each<[string, RequestMutator]>([
     ['invalid app slug', (request) => void (request.app = 'Not a slug!')],
     ['invalid environment slug', (request) => void (request.environment = 'Not an environment!')],
-    ['invalid category slug', (request) => void (request.category = 'spam category')],
+    [
+      'invalid category value',
+      (request) => void ((request as { category: string }).category = 'spam category'),
+    ],
+    [
+      'unsupported category value',
+      (request) => void ((request as { category: string }).category = 'enhancement'),
+    ],
     [
       'invalid reporter provider slug',
       (request) => void (request.reporter!.provider = 'Google SSO'),

@@ -840,9 +840,10 @@ Inputs from SSM in `us-east-2`:
 Configuration:
 
 - `config/applications.ts` gains `issueIntake?: { enabled: boolean; environments: string[];
-categories: string[]; reporterProviders: string[]; labels?: string[];
-auth?: IssueIntakeAuthConfig }`. Core accepts any valid slug; this config defines the
-  allowed values and optional SSO mode for each tenant. `auth` is `none` by default or `oidc`
+categories: Category[]; reporterProviders: string[]; labels?: string[];
+auth?: IssueIntakeAuthConfig }`. Core exports the fixed `Category` enumeration (`bug`,
+  `feature`, `other`); this config selects the allowed categories and defines the other allowed
+  values and optional SSO mode for each tenant. `auth` is `none` by default or `oidc`
   with issuer, audience, and allowlist rules as specified in
   [`issue-reporting-auth-sso-jwt.md`](issue-reporting-auth-sso-jwt.md).
 - `iron-altar` enables issue intake with its own environments, categories, and provider.
@@ -1178,7 +1179,7 @@ claim-derived `reporter`, and subject-based rate limiting. The rendered architec
 - `source:in-app`
 - `state:needs-triage`
 - `app:iron-altar`
-- `type:bug` | `type:feature` | `type:other` (`question` reports use `type:other`)
+- `type:bug` | `type:feature` | `type:other`
 - `environment:prod` | `environment:preview` | `environment:dev`
 
 If label creation fails with GitHub `422`, the worker retries without labels so the report

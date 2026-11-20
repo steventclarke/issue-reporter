@@ -306,7 +306,9 @@ declaring any phase done.
       `privateKey`; never commit them.
 - [x] Create the labels `source:in-app`, `state:needs-triage`, `app:iron-altar`, `type:bug`,
       `type:feature`, `type:other`, `environment:prod`, `environment:preview`, and
-      `environment:dev`; map `question` reports to `type:other`.
+      `environment:dev`.
+- [x] Restrict the shared `Category` enumeration to `bug | feature | other` and bump the coupled
+      core/client version to 1.1.0.
 - [x] Accept GitHub App private keys with real newlines, escaped `\n` sequences, or
       space-separated PEM text.
 - [x] Verify the App can mint an installation token and create a test issue.

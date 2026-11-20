@@ -86,8 +86,7 @@ describe('worker issue rendering', () => {
     ]);
   });
 
-  it('maps question reports to the other type label', () => {
-    expect(renderIssueLabels(['app:iron-altar'], 'question', 'dev')).toContain('type:other');
-    expect(renderIssueLabels(['app:iron-altar'], 'question', 'dev')).not.toContain('type:question');
+  it.each(['bug', 'feature', 'other'] as const)('uses the %s type label', (category) => {
+    expect(renderIssueLabels([], category, 'dev')).toContain(`type:${category}`);
   });
 });

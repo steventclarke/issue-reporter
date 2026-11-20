@@ -1,6 +1,6 @@
 import { FetchError, JwtExpiredError } from 'aws-jwt-verify/error';
 import { assertClaimsAllowed, reporterFromClaims, verifyBearerToken } from '../../src/ingest/auth';
-import type { IssueIntakeAuthConfig } from '../../config/applications';
+import type { IssueIntakeAuthConfig, IssueIntakeConfig } from '../../config/applications';
 import type { VerifiedClaims } from '../../src/ingest/types';
 
 const oidc: Extract<IssueIntakeAuthConfig, { mode: 'oidc' }> = {
@@ -90,7 +90,7 @@ describe('assertClaimsAllowed', () => {
 });
 
 describe('reporterFromClaims', () => {
-  const intake = {
+  const intake: IssueIntakeConfig = {
     enabled: true,
     environments: ['prod'],
     categories: ['bug'],
