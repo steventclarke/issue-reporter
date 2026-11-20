@@ -1060,7 +1060,9 @@ Secret path:
 ```
 
 The CDK stack creates the secret with placeholder values. The operator replaces the
-placeholder after creating the app. The worker caches installation tokens in Lambda memory.
+placeholder after creating the app. The worker accepts PEM values with real newlines, escaped
+`\n` sequences, or base64 lines separated by spaces. The worker caches installation tokens in
+Lambda memory.
 
 ### 8.10 CloudFront
 
@@ -1174,9 +1176,9 @@ claim-derived `reporter`, and subject-based rate limiting. The rendered architec
 ### Labels
 
 - `source:in-app`
-- `needs-triage`
+- `state:needs-triage`
 - `app:iron-altar`
-- `type:bug` | `type:feature` | `type:other`
+- `type:bug` | `type:feature` | `type:other` (`question` reports use `type:other`)
 - `environment:prod` | `environment:preview` | `environment:dev`
 
 If label creation fails with GitHub `422`, the worker retries without labels so the report

@@ -297,15 +297,19 @@ declaring any phase done.
       documented.
 - [x] Verify `cdk synth`/`cdk diff` with `preview` as the safe default context.
 
-### Phase 8: GitHub and operator setup (manual)
+### Phase 8: GitHub and operator setup (manual) — Completed
 
-- [ ] Create the GitHub App with `Issues: Read and write` and `Metadata: Read-only`, and
+- [x] Create the GitHub App with `Issues: Read and write` and `Metadata: Read-only`, and
       install it only on `steventclarke/iron-altar`.
-- [ ] Store `appId`, `installationId`, and `privateKey` in Secrets Manager; never commit
-      them.
-- [ ] Create the labels `source:in-app`, `needs-triage`, `app:iron-altar`, `type:*`, and
-      `environment:*`.
-- [ ] Verify the App can mint an installation token and create a test issue.
+- [x] Store the GitHub App credentials in each target account/region as one JSON secret at
+      `/platform/issue-intake/github-app` with keys `appId`, `installationId`, and
+      `privateKey`; never commit them.
+- [x] Create the labels `source:in-app`, `state:needs-triage`, `app:iron-altar`, `type:bug`,
+      `type:feature`, `type:other`, `environment:prod`, `environment:preview`, and
+      `environment:dev`; map `question` reports to `type:other`.
+- [x] Accept GitHub App private keys with real newlines, escaped `\n` sequences, or
+      space-separated PEM text.
+- [x] Verify the App can mint an installation token and create a test issue.
 
 ### Phase 9: Preview deployment and end-to-end verification
 

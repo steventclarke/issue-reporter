@@ -79,10 +79,15 @@ describe('worker issue rendering', () => {
   it('builds labels from base, app, category, and environment', () => {
     expect(renderIssueLabels(['app:iron-altar'], 'bug', 'preview')).toEqual([
       'source:in-app',
-      'needs-triage',
+      'state:needs-triage',
       'app:iron-altar',
       'type:bug',
       'environment:preview',
     ]);
+  });
+
+  it('maps question reports to the other type label', () => {
+    expect(renderIssueLabels(['app:iron-altar'], 'question', 'dev')).toContain('type:other');
+    expect(renderIssueLabels(['app:iron-altar'], 'question', 'dev')).not.toContain('type:question');
   });
 });

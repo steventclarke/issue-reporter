@@ -10,6 +10,7 @@ export const GITHUB_BODY_MAX_CHARS = 65_536;
 const LOG_PREVIEW_COUNT = 100;
 const STACK_TRACE_PREVIEW_COUNT = 10;
 const APP_DATA_SUMMARY_LIMIT = 20;
+const CATEGORY_LABEL_OVERRIDES: Record<string, string> = { question: 'other' };
 
 const disabledText = (value: unknown): string =>
   value === null ? 'Disabled by reporter.' : 'Not provided.';
@@ -105,9 +106,9 @@ export const renderIssueLabels = (
 ): string[] => [
   ...new Set([
     'source:in-app',
-    'needs-triage',
+    'state:needs-triage',
     ...appLabels,
-    `type:${category}`,
+    `type:${CATEGORY_LABEL_OVERRIDES[category] ?? category}`,
     `environment:${environment}`,
   ]),
 ];
