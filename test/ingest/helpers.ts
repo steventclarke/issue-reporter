@@ -1,5 +1,5 @@
 import type { IssueReportRequest } from '@stevenclarke/issue-reporter-core';
-import { allowedOrigins } from '../../config/applications';
+import { allowedOrigins, type ApplicationConfig } from '../../config/applications';
 import type {
   DynamoStore,
   IngestDependencies,
@@ -13,7 +13,7 @@ import { cloneValidReportRequest } from '../fixtures/issue-report';
 
 export const testOrigin = allowedOrigins[0] as string;
 
-export const testApplications = [
+export const testApplications: ApplicationConfig[] = [
   {
     name: 'example-app',
     repo: 'steventclarke/example-app',

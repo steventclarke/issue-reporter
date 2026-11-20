@@ -79,10 +79,14 @@ describe('worker issue rendering', () => {
   it('builds labels from base, app, category, and environment', () => {
     expect(renderIssueLabels(['app:iron-altar'], 'bug', 'preview')).toEqual([
       'source:in-app',
-      'needs-triage',
+      'state:needs-triage',
       'app:iron-altar',
       'type:bug',
       'environment:preview',
     ]);
+  });
+
+  it.each(['bug', 'feature', 'other'] as const)('uses the %s type label', (category) => {
+    expect(renderIssueLabels([], category, 'dev')).toContain(`type:${category}`);
   });
 });

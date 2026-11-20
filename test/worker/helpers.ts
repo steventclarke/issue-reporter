@@ -8,6 +8,7 @@ import type {
   StoredReport,
   WorkerDependencies,
 } from '../../src/worker/types';
+import type { ApplicationConfig } from '../../config/applications';
 
 export const reportId = '8c8f1f4e-8d6d-4f7f-9d7a-1d1d5e9d1234';
 export const installationId = 'b0f5de9b-4f5b-4c6f-9a1c-9a5b8a4e1f10';
@@ -84,14 +85,14 @@ export const baseRecord: ReportRecord = {
   subject: 'cognito-sub-123',
 };
 
-export const appConfigs = [
+export const appConfigs: ApplicationConfig[] = [
   {
     name: 'iron-altar',
     repo: 'steventclarke/iron-altar',
     issueIntake: {
       enabled: true,
       environments: ['prod', 'preview', 'dev'],
-      categories: ['bug', 'feature', 'question', 'other'],
+      categories: ['bug', 'feature', 'other'],
       reporterProviders: ['cognito'],
       labels: ['app:iron-altar'],
       auth: { mode: 'none' as const },

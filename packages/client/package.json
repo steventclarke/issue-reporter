@@ -1,6 +1,6 @@
 {
   "name": "@stevenclarke/issue-reporter-client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Framework-agnostic issue reporter client for tenant applications",
   "repository": {
     "type": "git",
@@ -23,7 +23,7 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@stevenclarke/issue-reporter-core": "1.0.0"
+    "@stevenclarke/issue-reporter-core": "1.1.0"
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --clean"

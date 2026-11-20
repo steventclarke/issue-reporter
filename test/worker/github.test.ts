@@ -22,6 +22,20 @@ describe('GitHub client factory', () => {
     expect(normalizePrivateKey('a\\r\\nb\\nc')).toBe('a\nb\nc');
   });
 
+  it('normalizes literal newlines and carriage returns', () => {
+    expect(normalizePrivateKey('a\r\nb\rc')).toBe('a\nb\nc');
+  });
+
+  it('normalizes space-separated PEM keys', () => {
+    expect(
+      normalizePrivateKey('-----BEGIN RSA PRIVATE KEY----- abc def -----END RSA PRIVATE KEY-----'),
+    ).toBe('-----BEGIN RSA PRIVATE KEY-----\nabc\ndef\n-----END RSA PRIVATE KEY-----');
+  });
+
+  it('leaves unrelated values trimmed', () => {
+    expect(normalizePrivateKey('  value  ')).toBe('value');
+  });
+
   it('creates an app client, normalizes the key, and caches the installation client', async () => {
     const create = jest.fn(async () => ({
       data: { number: 7, html_url: 'https://github.com/steventclarke/iron-altar/issues/7' },

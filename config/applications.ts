@@ -1,3 +1,5 @@
+import type { Category } from '@stevenclarke/issue-reporter-core';
+
 export type IssueIntakeAuthConfig =
   | { mode: 'none' }
   | {
@@ -15,7 +17,7 @@ export type IssueIntakeAuthConfig =
 export type IssueIntakeConfig = {
   enabled: boolean;
   environments: string[];
-  categories: string[];
+  categories: Category[];
   reporterProviders: string[];
   labels?: string[];
   auth?: IssueIntakeAuthConfig;
@@ -34,7 +36,7 @@ export const applications: ApplicationConfig[] = [
     issueIntake: {
       enabled: true,
       environments: ['prod', 'preview', 'dev'],
-      categories: ['bug', 'feature', 'question', 'other'],
+      categories: ['bug', 'feature', 'other'],
       reporterProviders: ['cognito'],
       labels: ['app:iron-altar'],
       auth: { mode: 'none' },

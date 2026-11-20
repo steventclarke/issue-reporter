@@ -17,6 +17,7 @@ const slugSchema = z
   .regex(/^[a-z0-9][a-z0-9._-]*$/);
 
 export const LOG_LEVELS = ['log', 'info', 'warn', 'error'] as const;
+export const ISSUE_CATEGORIES = ['bug', 'feature', 'other'] as const;
 export const SCREENSHOT_CONTENT_TYPES = ['image/jpeg', 'image/png'] as const;
 export const REPORT_STATUSES = ['receiving', 'queued', 'created', 'failed'] as const;
 export const ERROR_CODES = [
@@ -41,7 +42,7 @@ export const AUTH_FAILURE_REASONS = [
 
 export const appSlugSchema = slugSchema;
 export const environmentSchema = slugSchema;
-export const categorySchema = slugSchema;
+export const categorySchema = z.enum(ISSUE_CATEGORIES);
 export const platformSchema = slugSchema;
 export const reporterProviderSchema = slugSchema;
 export const logLevelSchema = z.enum(LOG_LEVELS);

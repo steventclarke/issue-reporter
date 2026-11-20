@@ -1,4 +1,5 @@
 import type {
+  Category,
   IssueReportRequest,
   ReporterIdentity,
   ScreenshotContentType,
@@ -33,7 +34,7 @@ export type ReportRecord = {
   environment: string;
   status: 'receiving' | 'queued' | 'created' | 'failed';
   installationId: string;
-  category: string;
+  category: Category;
   reportKey: string;
   screenshotKey?: string;
   createdAt: string;

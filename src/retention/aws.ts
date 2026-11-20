@@ -7,6 +7,7 @@ import {
   UpdateCommand,
   type ScanCommandInput,
 } from '@aws-sdk/lib-dynamodb';
+import { categorySchema } from '@stevenclarke/issue-reporter-core';
 import { z } from 'zod';
 import type {
   AttachmentStore,
@@ -33,7 +34,7 @@ const reportRecordSchema = z
     environment: z.string(),
     status: z.enum(['receiving', 'queued', 'created', 'failed']),
     installationId: z.string(),
-    category: z.string(),
+    category: categorySchema,
     reportKey: z.string(),
     screenshotKey: z.string().optional(),
     createdAt: z.string(),

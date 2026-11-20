@@ -1,4 +1,5 @@
 import type {
+  Category,
   ClientInfo,
   LogEntry,
   ReporterIdentity,
@@ -100,12 +101,12 @@ export const renderIssueTitle = (report: StoredReport): string => {
 
 export const renderIssueLabels = (
   appLabels: readonly string[],
-  category: string,
+  category: Category,
   environment: string,
 ): string[] => [
   ...new Set([
     'source:in-app',
-    'needs-triage',
+    'state:needs-triage',
     ...appLabels,
     `type:${category}`,
     `environment:${environment}`,

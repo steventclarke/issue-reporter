@@ -141,9 +141,9 @@ describe('body and contract validation', () => {
     ]);
 
     const badCategory = cloneValidReportRequest();
-    badCategory.category = 'spam';
+    (badCategory as { category: string }).category = 'spam';
     expect(responseJson(await handler(makeEvent(badCategory))).issues).toEqual([
-      expect.objectContaining({ path: 'category' }),
+      expect.objectContaining({ path: ['category'] }),
     ]);
 
     const badReporter = cloneValidReportRequest();

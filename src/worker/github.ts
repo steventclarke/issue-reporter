@@ -41,12 +41,41 @@ const clientCache = new Map<string, Promise<IssueClient>>();
 const defaultAppFactory: AppFactory = (options) =>
   import('octokit').then(({ App }) => new App(options) as unknown as AppLike);
 
-export const normalizePrivateKey = (value: string): string =>
-  value
+export const normalizePrivateKey = (value: string): string => {
+  const withNewlines = value
     .replace(/\\r\\n/g, '\n')
     .replace(/\\n/g, '\n')
     .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
     .trim();
+
+  if (withNewlines.includes('\n')) return withNewlines;
+
+  const parts = withNewlines.split(/\s+/);
+  const beginIndex = parts.indexOf('-----BEGIN');
+  const beginEndIndex = parts.findIndex((part, index) => index > beginIndex && part === 'KEY-----');
+  const endIndex = parts.findIndex((part, index) => index > beginEndIndex && part === '-----END');
+  const endEndIndex = parts.findIndex((part, index) => index > endIndex && part === 'KEY-----');
+
+  if (
+    beginIndex < 0 ||
+    beginEndIndex < 0 ||
+    endIndex < 0 ||
+    endEndIndex < 0 ||
+    endEndIndex !== parts.length - 1
+  ) {
+    return withNewlines;
+  }
+
+  const body = parts.slice(beginEndIndex + 1, endIndex);
+  if (body.length === 0) return withNewlines;
+
+  return [
+    parts.slice(beginIndex, beginEndIndex + 1).join(' '),
+    ...body,
+    parts.slice(endIndex, endEndIndex + 1).join(' '),
+  ].join('\n');
+};
 
 export const clearGithubClientCache = (): void => {
   clientCache.clear();
