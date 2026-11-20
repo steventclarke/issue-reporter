@@ -60,8 +60,19 @@ export type CreatedIssue = {
   htmlUrl: string;
 };
 
+export type GetIssueInput = {
+  owner: string;
+  repo: string;
+  issueNumber: number;
+};
+
+export type IssueState = {
+  state: 'open' | 'closed';
+};
+
 export type IssueClient = {
   createIssue(input: CreateIssueInput): Promise<CreatedIssue>;
+  getIssue(input: GetIssueInput): Promise<IssueState>;
 };
 
 export type GithubClientFactory = (secret: GithubAppSecret) => IssueClient;

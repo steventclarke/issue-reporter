@@ -26,7 +26,8 @@ describe('GitHub client factory', () => {
     const create = jest.fn(async () => ({
       data: { number: 7, html_url: 'https://github.com/steventclarke/iron-altar/issues/7' },
     }));
-    const installationOctokit = { rest: { issues: { create } } };
+    const get = jest.fn(async () => ({ data: { state: 'closed' as const } }));
+    const installationOctokit = { rest: { issues: { create, get } } };
     const getInstallationOctokit = jest.fn(() => installationOctokit);
     const createApp = jest.fn(() => ({ getInstallationOctokit }));
     const factory = createGithubClientFactory(createApp);
@@ -37,6 +38,11 @@ describe('GitHub client factory', () => {
 
     const client = factory(secret);
     const result = await client.createIssue(issueInput);
+    const state = await client.getIssue({
+      owner: 'steventclarke',
+      repo: 'iron-altar',
+      issueNumber: 7,
+    });
     await factory(secret).createIssue(issueInput);
 
     expect(createApp).toHaveBeenCalledTimes(1);
@@ -49,6 +55,12 @@ describe('GitHub client factory', () => {
     expect(result).toEqual({
       number: 7,
       htmlUrl: 'https://github.com/steventclarke/iron-altar/issues/7',
+    });
+    expect(state).toEqual({ state: 'closed' });
+    expect(get).toHaveBeenCalledWith({
+      owner: 'steventclarke',
+      repo: 'iron-altar',
+      issueNumber: 7,
     });
     expect(create).toHaveBeenCalledTimes(2);
   });

@@ -136,6 +136,7 @@ export const createMocks = (overrides: Partial<WorkerDependencies> = {}): Mocks 
   };
   const client: jest.Mocked<IssueClient> = {
     createIssue: jest.fn().mockResolvedValue(createdIssue),
+    getIssue: jest.fn().mockResolvedValue({ state: 'open' }),
   };
   const githubClientFactory: jest.MockedFunction<(secret: GithubAppSecret) => IssueClient> =
     jest.fn((secret) => {
