@@ -851,19 +851,20 @@ auth?: IssueIntakeAuthConfig }`. Core accepts any valid slug; this config define
 
 Resources:
 
-| Resource            | Purpose                                 | Key settings                                                                                     |
-| ------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `ReportsTable`      | Report status, idempotency, rate limits | `pk`/`sk`, on-demand, TTL, AWS-managed encryption, `RETAIN`                                      |
-| `AttachmentsBucket` | Screenshots + sanitized report JSON     | Private, block all public access, SSE, enforce TLS, `RETAIN`, abort incomplete multipart uploads |
-| `WorkerQueue`       | Async issue creation                    | Visibility 180s, retention 4 days, encryption                                                    |
-| `WorkerDlq`         | Failed jobs                             | Retention 14 days, `maxReceiveCount: 5`                                                          |
-| `IngestFunction`    | Validate/upload/enqueue                 | Node 22, ARM64, 512 MB, 10s timeout                                                              |
-| `WorkerFunction`    | Create GitHub issue                     | Node 22, ARM64, 512 MB, 30s timeout                                                              |
-| `GitHubAppSecret`   | GitHub App credentials                  | `/platform/issue-intake/github-app`, placeholder values                                          |
-| `Distribution`      | Public HTTPS endpoint                   | Default -> Function URL, `/attachments/*` -> S3, TLS 1.2, security headers                       |
-| `IngestAlarm`       | Ingest errors                           | SNS alerts topic                                                                                 |
-| `WorkerAlarm`       | Worker errors                           | SNS alerts topic                                                                                 |
-| `DlqAlarm`          | DLQ depth                               | SNS alerts topic                                                                                 |
+| Resource            | Purpose                                 | Key settings                                                                           |
+| ------------------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ReportsTable`      | Report status, idempotency, rate limits | `pk`/`sk`, on-demand, TTL, PITR, AWS-managed encryption, `RETAIN`                      |
+| `AttachmentsBucket` | Screenshots + sanitized report JSON     | Private, block all public access, SSE, enforce TLS, `RETAIN`, 30-day closure lifecycle |
+| `WorkerQueue`       | Async issue creation                    | Visibility 180s, retention 4 days, encryption                                          |
+| `WorkerDlq`         | Failed jobs                             | Retention 14 days, `maxReceiveCount: 5`                                                |
+| `IngestFunction`    | Validate/upload/enqueue                 | Node 22, ARM64, 512 MB, 10s timeout                                                    |
+| `WorkerFunction`    | Create GitHub issue                     | Node 22, ARM64, 512 MB, 30s timeout                                                    |
+| `RetentionFunction` | Close-linked attachment expiry          | Node 22, ARM64, 512 MB, daily EventBridge schedule                                     |
+| `GitHubAppSecret`   | GitHub App credentials                  | `/platform/issue-intake/github-app`, placeholder values                                |
+| `Distribution`      | Public HTTPS endpoint                   | Default -> Function URL, `/attachments/*` -> S3, TLS 1.2, security headers             |
+| `IngestAlarm`       | Ingest errors                           | SNS alerts topic                                                                       |
+| `WorkerAlarm`       | Worker errors                           | SNS alerts topic                                                                       |
+| `DlqAlarm`          | DLQ depth                               | SNS alerts topic                                                                       |
 
 SSM outputs:
 
@@ -1110,7 +1111,9 @@ issue-reporter/
     src/index.ts               createIssueReporter, submit, createReportId
     src/install-id.ts          storage-adapter installation ID
     src/errors.ts              IssueReporterError + response mapping
-  lambda/issue-intake/         ingest and worker handlers
+  src/ingest/                  ingest handler
+  src/worker/                  worker handler and GitHub issue rendering
+  src/retention/               daily closed-issue retention handler
   lib/issue-intake-stack.ts    CDK stack
   bin/app.ts                   CDK app
   config/applications.ts       tenant enablement and allowed values

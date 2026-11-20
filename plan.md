@@ -264,38 +264,38 @@ declaring any phase done.
 - [x] Add tests for open vs closed issues, idempotent closure tagging, 30-day expiry
       configuration, and missing GitHub issue/secret handling.
 
-### Phase 7: CDK infrastructure
+### Phase 7: CDK infrastructure — Completed
 
-- [ ] Add `lib/issue-intake-stack.ts` and wire it in `bin/app.ts`; read the four shared SSM
+- [x] Add `lib/issue-intake-stack.ts` and wire it in `bin/app.ts`; read the four shared SSM
       values (hosted zone, domain, us-east-1 wildcard certificate ARN, alerts topic).
-- [ ] Add `config/applications.ts` with `issueIntake` config, build `APP_CONFIG` and allowed
+- [x] Add `config/applications.ts` with `issueIntake` config, build `APP_CONFIG` and allowed
       origins, and publish per-app SSM outputs (`api-url`, `app-id`, `repo`, `labels`).
-- [ ] Add `ReportsTable` (on-demand, TTL, AWS-managed encryption, `RETAIN`).
-- [ ] Add `AttachmentsBucket` (private, block public access, SSE, TLS enforcement,
+- [x] Add `ReportsTable` (on-demand, TTL, AWS-managed encryption, `RETAIN`).
+- [x] Add `AttachmentsBucket` (private, block public access, SSE, TLS enforcement,
       `RETAIN`, abort incomplete multipart uploads).
-- [ ] Add an S3 lifecycle rule expiring objects tagged with the closure marker 30 days
+- [x] Add an S3 lifecycle rule expiring objects tagged with the closure marker 30 days
       after the tag date (Phase 6.1).
-- [ ] Add an EventBridge daily schedule invoking the retention handler with least-privilege
+- [x] Add an EventBridge daily schedule invoking the retention handler with least-privilege
       permissions.
-- [ ] Add `WorkerQueue` (visibility 180 s, retention 4 days, encryption) and `WorkerDlq`
+- [x] Add `WorkerQueue` (visibility 180 s, retention 4 days, encryption) and `WorkerDlq`
       (retention 14 days, `maxReceiveCount: 5`).
-- [ ] Add `IngestFunction` and the `AWS_IAM` Function URL with OAC (Node 22, ARM64,
+- [x] Add `IngestFunction` and the `AWS_IAM` Function URL with OAC (Node 22, ARM64,
       512 MB, 10 s).
-- [ ] Add `WorkerFunction` (Node 22, ARM64, 512 MB, 30 s) with the SQS event source,
+- [x] Add `WorkerFunction` (Node 22, ARM64, 512 MB, 30 s) with the SQS event source,
       `batchSize: 1`, and partial batch failures.
-- [ ] Add the GitHub App secret with placeholder values at
+- [x] Add the GitHub App secret with placeholder values at
       `/platform/issue-intake/github-app`.
-- [ ] Add the CloudFront distribution: default behavior to the Function URL with OAC,
+- [x] Add the CloudFront distribution: default behavior to the Function URL with OAC,
       `/attachments/*` to S3 with OAC, caching disabled on ingest, allowed methods, HTTPS
       only, TLS 1.2, price class 100, and the four response security headers.
-- [ ] Add the Route 53 A/AAAA alias for `issues.stevenclarke.dev`.
-- [ ] Add ingest, worker, and DLQ-depth alarms publishing to the platform SNS topic
+- [x] Add the Route 53 A/AAAA alias for `issues.stevenclarke.dev`.
+- [x] Add ingest, worker, and DLQ-depth alarms publishing to the platform SNS topic
       (initial defaults: Lambda `Errors` > 0 over 5 minutes, DLQ depth > 0 over 5 minutes).
-- [ ] Tag all resources `project`, `environment`, `owner`, `application`, `managed-by`.
-- [ ] Add CDK assertions for Function URL OAC, CloudFront behaviors, S3 privacy, DynamoDB
+- [x] Tag all resources `project`, `environment`, `owner`, `application`, `managed-by`.
+- [x] Add CDK assertions for Function URL OAC, CloudFront behaviors, S3 privacy, DynamoDB
       TTL, SQS/DLQ, alarms, and SSM outputs; keep `cdk-nag` suppressions narrow and
       documented.
-- [ ] Verify `cdk synth`/`cdk diff` with `preview` as the safe default context.
+- [x] Verify `cdk synth`/`cdk diff` with `preview` as the safe default context.
 
 ### Phase 8: GitHub and operator setup (manual)
 

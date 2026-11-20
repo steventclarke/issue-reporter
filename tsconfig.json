@@ -17,5 +17,12 @@
       "@stevenclarke/issue-reporter-client": ["./packages/client/src/index.ts"]
     }
   },
-  "include": ["config/**/*.ts", "packages/*/src/**/*.ts", "src/**/*.ts", "test/**/*.ts"]
+  "include": [
+    "bin/**/*.ts",
+    "config/**/*.ts",
+    "lib/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ]
 }
