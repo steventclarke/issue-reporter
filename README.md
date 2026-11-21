@@ -95,3 +95,16 @@ To release:
 2. For a rehearsal, run the `Release` workflow manually with `dry_run: true`.
 3. For a real release, push a `vX.Y.Z` tag; the workflow verifies the tag, runs checks, and
    publishes both packages to CodeArtifact in core-then-client order.
+
+## Production deployment
+
+The `Deploy (Production)` workflow runs on pushes to `main` (including merges) and can also be
+started with `workflow_dispatch` from `main`. It first runs the same checks as CI, then waits for
+approval in the `production` GitHub Environment before running `cdk diff` and deploying
+`IssueIntakeStack-prod`. No preview stack is deployed by this workflow.
+
+The `production` Environment has `steventclarke` configured as a required reviewer and defines
+`DEPLOY_ROLE_ARN`, the OIDC deploy role ARN from
+`/platform/roles/issue-reporter/prod/deploy-role-arn`. The role must have the CDK permissions
+needed to manage the issue-intake resources; those permissions are granted by the
+`stevenclarke-infrastructure` repository.
